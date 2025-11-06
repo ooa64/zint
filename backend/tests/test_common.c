@@ -78,7 +78,7 @@ static void test_to_int(const testCtx *const p_ctx) {
 
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
 
-        ret = to_int((const unsigned char *) data[i].data, length);
+        ret = z_to_int(ZCUCP(data[i].data), length);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
     }
 
@@ -116,7 +116,7 @@ static void test_to_upper(const testCtx *const p_ctx) {
         memcpy(buf, data[i].data, length);
         buf[length] = '\0';
 
-        to_upper(buf, length);
+        z_to_upper(buf, length);
         assert_zero(strcmp((const char *) buf, data[i].expected), "i:%d strcmp(%s, %s) != 0\n",
                     i, buf, data[i].expected);
     }
@@ -149,7 +149,7 @@ static void test_chr_cnt(const testCtx *const p_ctx) {
 
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
 
-        ret = chr_cnt((const unsigned char *) data[i].data, length, data[i].c);
+        ret = z_chr_cnt(ZCUCP(data[i].data), length, data[i].c);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
     }
 
@@ -183,7 +183,7 @@ static void test_is_chr(const testCtx *const p_ctx) {
 
         if (testContinue(p_ctx, i)) continue;
 
-        ret = is_chr(data[i].flg, data[i].c);
+        ret = z_is_chr(data[i].flg, data[i].c);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
     }
 
@@ -299,7 +299,7 @@ static void test_not_sane(const testCtx *const p_ctx) {
 
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
 
-        ret = not_sane(data[i].flg, (const unsigned char *) data[i].data, length);
+        ret = z_not_sane(data[i].flg, (const unsigned char *) data[i].data, length);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
 
         if (data[i].orig_test[0]) {
@@ -313,12 +313,12 @@ static void test_not_sane(const testCtx *const p_ctx) {
 
         ret = 0;
         for (j = 0; j < length; j++) {
-            if (!is_chr(data[i].flg, data[i].data[j])) {
+            if (!z_is_chr(data[i].flg, data[i].data[j])) {
                 ret = j + 1;
                 break;
             }
         }
-        assert_equal(ret, data[i].ret, "i:%d is_chr() ret %d != %d\n", i, ret, data[i].ret);
+        assert_equal(ret, data[i].ret, "i:%d z_is_chr() ret %d != %d\n", i, ret, data[i].ret);
     }
 
     testFinish();
@@ -354,7 +354,8 @@ static void test_not_sane_lookup(const testCtx *const p_ctx) {
         test_length = data[i].test_length == -1 ? (int) strlen(data[i].test_string) : data[i].test_length;
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
 
-        ret = not_sane_lookup(data[i].test_string, test_length, (const unsigned char *) data[i].data, length, posns);
+        ret = z_not_sane_lookup(data[i].test_string, test_length, (const unsigned char *) data[i].data, length,
+                                posns);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
 
         if (ret == 0) {
@@ -407,7 +408,7 @@ static void test_errtxt(const testCtx *const p_ctx) {
         memset(symbol, 0, sizeof(*symbol));
         if (data[i].debug_test) symbol->debug |= ZINT_DEBUG_TEST;
 
-        ret = errtxt(data[i].error_number, symbol, data[i].err_id, data[i].msg);
+        ret = z_errtxt(data[i].error_number, symbol, data[i].err_id, data[i].msg);
         assert_equal(ret, data[i].error_number, "i:%d ret %d != %d\n", i, ret, data[i].error_number);
         assert_zero(strcmp(symbol->errtxt, data[i].expected), "i:%d strcmp(%s, %s) != 0\n",
                     i, symbol->errtxt, data[i].expected);
@@ -432,14 +433,14 @@ static void test_errtxtf(const testCtx *const p_ctx) {
     };
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
-        /*  0*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%0$d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  1*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%1d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  2*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%10$d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  3*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%10d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  4*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%00d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  5*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%000d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  6*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%001d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
-        /*  7*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%0111d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifer" },
+        /*  0*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%0$d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  1*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%1d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  2*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%10$d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  3*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%10d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  4*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%00d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  5*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%000d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  6*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%001d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
+        /*  7*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%0111d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid numbered format specifier" },
         /*  8*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%x", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: unknown format specifier ('%c','%d','%f','%g','%s' only)" },
         /*  9*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%1$10d", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: unknown format specifier ('%c','%d','%f','%g','%s' only)" },
         /* 10*/ { 1, ZINT_ERROR_TOO_LONG, 123, "%.0s", 0, 0, NULL, 0, ZINT_ERROR_ENCODING_PROBLEM, "000: Internal error: invalid length precision" },
@@ -542,37 +543,37 @@ static void test_errtxtf(const testCtx *const p_ctx) {
         if (data[i].debug_test) symbol->debug |= ZINT_DEBUG_TEST;
 
         if (data[i].num_args == 0) {
-            ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt,
+            ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt,
                             NULL /*suppress -Wformat-security*/);
         } else if (data[i].num_args == 1) {
             if (data[i].i_arg != -1) {
-                ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg);
+                ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg);
             } else if (data[i].s_arg != NULL) {
-                ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].s_arg);
+                ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].s_arg);
             } else {
-                ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].f_arg);
+                ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].f_arg);
             }
         } else if (data[i].num_args == 2) {
             if (data[i].i_arg != -1) {
                 if (data[i].s_arg != NULL) {
-                    ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg,
+                    ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg,
                                     data[i].s_arg);
                 } else {
-                    ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg,
+                    ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg,
                                     data[i].f_arg);
                 }
             } else {
                 assert_nonnull(data[i].s_arg, "i:%d num_args:%d data[i].s_arg NULL", i, data[i].num_args);
-                ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].s_arg,
+                ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].s_arg,
                                 data[i].f_arg);
             }
         } else if (data[i].num_args == 3) {
             assert_nonnull(data[i].s_arg, "i:%d num_args:%d data[i].s_arg NULL", i, data[i].num_args);
-            ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg, data[i].s_arg,
+            ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, data[i].i_arg, data[i].s_arg,
                             data[i].f_arg);
         } else if (data[i].num_args == 9) { /* Special case max, assuming 4th arg "%d", 5th arg "%s" */
             assert_nonnull(data[i].s_arg, "i:%d num_args:%d data[i].s_arg NULL", i, data[i].num_args);
-            ret = errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, 2100000001, 2100000002, 3333,
+            ret = z_errtxtf(data[i].error_number, symbol, data[i].err_id, data[i].fmt, 2100000001, 2100000002, 3333,
                             data[i].i_arg, data[i].s_arg, 2100000006, 2100000007, 2100000008, 2100000009);
         } else {
             assert_nonnull(NULL, "i:%d num_args:%d > 3 && != 9\n", i, data[i].num_args);
@@ -619,7 +620,7 @@ static void test_cnt_digits(const testCtx *const p_ctx) {
 
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
 
-        ret = cnt_digits((const unsigned char *) data[i].data, length, data[i].position, data[i].max);
+        ret = z_cnt_digits((const unsigned char *) data[i].data, length, data[i].position, data[i].max);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
     }
 
@@ -658,7 +659,7 @@ static void test_is_valid_utf8(const testCtx *const p_ctx) {
 
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
 
-        ret = is_valid_utf8((const unsigned char *) data[i].data, length);
+        ret = z_is_valid_utf8((const unsigned char *) data[i].data, length);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
     }
 
@@ -707,7 +708,7 @@ static void test_utf8_to_unicode(const testCtx *const p_ctx) {
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
         ret_length = length;
 
-        ret = utf8_to_unicode(symbol, (unsigned char *) data[i].data, vals, &ret_length, data[i].disallow_4byte);
+        ret = z_utf8_to_unicode(symbol, (unsigned char *) data[i].data, vals, &ret_length, data[i].disallow_4byte);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
         if (ret == 0) {
             int j;
@@ -787,14 +788,14 @@ static void test_hrt_cpy_iso8859_1(const testCtx *const p_ctx) {
         length = data[i].length == -1 ? (int) strlen(data[i].data) : data[i].length;
         expected_length = (int) strlen(data[i].expected);
 
-        ret = hrt_cpy_iso8859_1(symbol, (unsigned char *) data[i].data, length);
+        ret = z_hrt_cpy_iso8859_1(symbol, (unsigned char *) data[i].data, length);
         if (p_ctx->index != -1 && (debug & ZINT_DEBUG_TEST_PRINT)) {
             for (j = 0; j < symbol->text_length; j++) {
                 fprintf(stderr, "symbol->text[%d] %2X\n", j, symbol->text[j]);
             }
         }
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
-        assert_nonzero(testUtilIsValidUTF8(symbol->text, (int) ustrlen(symbol->text)),
+        assert_nonzero(testUtilIsValidUTF8(symbol->text, (int) z_ustrlen(symbol->text)),
                         "i:%d testUtilIsValidUTF8(%s) != 1\n", i, symbol->text);
         assert_equal(symbol->text_length, expected_length, "i:%d text_length %d != expected_length %d\n",
                     i, symbol->text_length, expected_length);
@@ -809,16 +810,16 @@ static void test_hrt_cpy_nochk(const testCtx *const p_ctx) {
     int debug = p_ctx->debug;
 
     struct item {
-        const char *cpy; /* hrt_cpy_nochk() */
+        const char *cpy; /* z_hrt_cpy_nochk() */
         int cpy_length;
 
-        const char cpy_chr; /* hrt_cpy_chr() */
+        const char cpy_chr; /* z_hrt_cpy_chr() */
         int cpy_chr_length;
 
-        const char *cat; /* hrt_cat_nochk() */
+        const char *cat; /* z_hrt_cat_nochk() */
         int cat_length;
 
-        char cat_chr; /* hrt_cat_chr_nochk() */
+        char cat_chr; /* z_hrt_cat_chr_nochk() */
         int cat_chr_length;
 
         const char *expected;
@@ -827,15 +828,15 @@ static void test_hrt_cpy_nochk(const testCtx *const p_ctx) {
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
         /*  0*/ { "", -1, 0, 0, "", -1, 0, 0, "", -1 }, /* All zero */
-        /*  1*/ { "AB\000C", 4, 0, 0, "", -1, 0, 0, "AB\000C", 4 }, /* hrt_cpy_nochk() */
-        /*  2*/ { "", -1, '\000', 1, "", -1, 0, 0, "\000", 1 }, /* hrt_chr() (NUL char) */
-        /*  3*/ { "", -1, '\000', 1, "XYZ", -1, 0, 0, "\000XYZ", 4 }, /* hrt_chr() + hrt_cat_nochk() */
-        /*  4*/ { "", -1, '\000', 1, "", -1, '\000', 1, "\000\000", 2 }, /* hrt_chr() + hrt_cat_chr_nochk() (both NULL char) */
-        /*  5*/ { "", -1, '\000', 1, "XYZ", -1, '\001', 1, "\000XYZ\001", 5 }, /* hrt_chr() + hrt_cat_chr_nochk() + hrt_cat_nochk() */
-        /*  6*/ { "ABC\000", 4, 0, 0, "\000XYZ\177", 5, 0, 0, "ABC\000\000XYZ\177", 9 }, /* hrt_cpy_nochk() + hrt_cat_nochk() */
-        /*  7*/ { "ABC\000", 4, 0, 0, "", -1, '\177', 1, "ABC\000\177", 5 }, /* hrt_cpy_nochk() + hrt_cat_chr_nochk() */
-        /*  8*/ { "ABC\000", 4, 0, 0, "X\001Y\002Z", 5, '\003', 1, "ABC\000X\001Y\002Z\003", 10 }, /* hrt_cpy_nochk() + hrt_cat_chr_nochk() + hrt_cat_chr_nochk() */
-        /*  9*/ { "1234567890123456789012345678901234567890123456789012345", -1, 0, 0, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", -1, 0, 0, "123456789012345678901234567890123456789012345678901234512345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", -1 }, /* hrt_cpy_nochk() + hrt_cat_nochk() - max 255 */
+        /*  1*/ { "AB\000C", 4, 0, 0, "", -1, 0, 0, "AB\000C", 4 }, /* z_hrt_cpy_nochk() */
+        /*  2*/ { "", -1, '\000', 1, "", -1, 0, 0, "\000", 1 }, /* z_hrt_chr() (NUL char) */
+        /*  3*/ { "", -1, '\000', 1, "XYZ", -1, 0, 0, "\000XYZ", 4 }, /* z_hrt_chr() + z_hrt_cat_nochk() */
+        /*  4*/ { "", -1, '\000', 1, "", -1, '\000', 1, "\000\000", 2 }, /* z_hrt_chr() + z_hrt_cat_chr_nochk() (both NULL char) */
+        /*  5*/ { "", -1, '\000', 1, "XYZ", -1, '\001', 1, "\000XYZ\001", 5 }, /* z_hrt_chr() + z_hrt_cat_chr_nochk() + z_hrt_cat_nochk() */
+        /*  6*/ { "ABC\000", 4, 0, 0, "\000XYZ\177", 5, 0, 0, "ABC\000\000XYZ\177", 9 }, /* z_hrt_cpy_nochk() + z_hrt_cat_nochk() */
+        /*  7*/ { "ABC\000", 4, 0, 0, "", -1, '\177', 1, "ABC\000\177", 5 }, /* z_hrt_cpy_nochk() + z_hrt_cat_chr_nochk() */
+        /*  8*/ { "ABC\000", 4, 0, 0, "X\001Y\002Z", 5, '\003', 1, "ABC\000X\001Y\002Z\003", 10 }, /* z_hrt_cpy_nochk() + z_hrt_cat_chr_nochk() + z_hrt_cat_chr_nochk() */
+        /*  9*/ { "1234567890123456789012345678901234567890123456789012345", -1, 0, 0, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", -1, 0, 0, "123456789012345678901234567890123456789012345678901234512345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", -1 }, /* z_hrt_cpy_nochk() + z_hrt_cat_nochk() - max 255 */
     };
     const int data_size = ARRAY_SIZE(data);
     int i, length;
@@ -858,16 +859,16 @@ static void test_hrt_cpy_nochk(const testCtx *const p_ctx) {
         expected_length = data[i].expected_length == -1 ? (int) strlen(data[i].expected) : data[i].expected_length;
 
         if ((length = data[i].cpy_length == -1 ? (int) strlen(data[i].cpy) : data[i].cpy_length)) {
-            hrt_cpy_nochk(symbol, TCU(data[i].cpy), length);
+            z_hrt_cpy_nochk(symbol, TCU(data[i].cpy), length);
         }
         if (data[i].cpy_chr_length) {
-            hrt_cpy_chr(symbol, data[i].cpy_chr);
+            z_hrt_cpy_chr(symbol, data[i].cpy_chr);
         }
         if ((length = data[i].cat_length == -1 ? (int) strlen(data[i].cat) : data[i].cat_length)) {
-            hrt_cat_nochk(symbol, TCU(data[i].cat), length);
+            z_hrt_cat_nochk(symbol, TCU(data[i].cat), length);
         }
         if (data[i].cat_chr_length) {
-            hrt_cat_chr_nochk(symbol, data[i].cat_chr);
+            z_hrt_cat_chr_nochk(symbol, data[i].cat_chr);
         }
 
         if (p_ctx->index != -1 && (debug & ZINT_DEBUG_TEST_PRINT)) {
@@ -876,7 +877,7 @@ static void test_hrt_cpy_nochk(const testCtx *const p_ctx) {
             }
         }
 
-        assert_nonzero(testUtilIsValidUTF8(symbol->text, (int) ustrlen(symbol->text)),
+        assert_nonzero(testUtilIsValidUTF8(symbol->text, (int) z_ustrlen(symbol->text)),
                     "i:%d testUtilIsValidUTF8(%s) != 1\n", i, symbol->text);
         assert_equal(symbol->text_length, expected_length, "i:%d text_length %d != expected_length %d\n",
                     i, symbol->text_length, expected_length);
@@ -933,7 +934,7 @@ static void test_hrt_cpy_cat_nochk(const testCtx *const p_ctx) {
 
         expected_length = data[i].expected_length == -1 ? (int) strlen(data[i].expected) : data[i].expected_length;
 
-        hrt_cpy_cat_nochk(symbol, TCU(data[i].source), data[i].length, data[i].separator, TCU(data[i].cat),
+        z_hrt_cpy_cat_nochk(symbol, TCU(data[i].source), data[i].length, data[i].separator, TCU(data[i].cat),
                             data[i].cat_length);
 
         if (p_ctx->index != -1 && (debug & ZINT_DEBUG_TEST_PRINT)) {
@@ -942,7 +943,7 @@ static void test_hrt_cpy_cat_nochk(const testCtx *const p_ctx) {
             }
         }
 
-        assert_nonzero(testUtilIsValidUTF8(symbol->text, (int) ustrlen(symbol->text)),
+        assert_nonzero(testUtilIsValidUTF8(symbol->text, (int) z_ustrlen(symbol->text)),
                     "i:%d testUtilIsValidUTF8(%s) != 1\n", i, symbol->text);
         assert_equal(symbol->text_length, expected_length, "i:%d text_length %d != expected_length %d\n",
                     i, symbol->text_length, expected_length);
@@ -987,9 +988,9 @@ static void test_hrt_printf_nochk(const testCtx *const p_ctx) {
         memset(symbol, 0, sizeof(*symbol));
 
         if (data[i].num_args == 1) {
-            hrt_printf_nochk(symbol, data[i].fmt, data[i].data1);
+            z_hrt_printf_nochk(symbol, data[i].fmt, data[i].data1);
         } else if (data[i].num_args == 2) {
-            hrt_printf_nochk(symbol, data[i].fmt, data[i].data1, data[i].data2);
+            z_hrt_printf_nochk(symbol, data[i].fmt, data[i].data1, data[i].data2);
         } else {
             assert_zero(1, "i:%d, bad num_args\n", i);
         }
@@ -1043,7 +1044,7 @@ static void test_hrt_conv_gs1_brackets_nochk(const testCtx *const p_ctx) {
 
         length = (int) strlen(data[i].data);
 
-        hrt_conv_gs1_brackets_nochk(symbol, TCU(data[i].data), length);
+        z_hrt_conv_gs1_brackets_nochk(symbol, TCU(data[i].data), length);
 
         assert_zero(strcmp((const char *) symbol->text, data[i].expected), "i:%d strcmp(\"%s\", \"%s\") != 0\n",
                     i, symbol->text, data[i].expected);
@@ -1052,34 +1053,28 @@ static void test_hrt_conv_gs1_brackets_nochk(const testCtx *const p_ctx) {
     testFinish();
 }
 
-static void test_rt_cpy_seg(const testCtx *const p_ctx) {
+static void test_ct_cpy_segs(const testCtx *const p_ctx) {
     int debug = p_ctx->debug;
 
     struct item {
         int seg_count;
-        int seg_idx;
-        struct zint_seg seg;
-        unsigned int ddata[8];
-        int ddata_size;
-        int ddata_eci;
+        struct zint_seg segs[3];
 
-        const char *expected;
-        int expected_length;
-        int expected_eci;
+        struct zint_seg expected_content_segs[3];
+        int expected_content_seg_count;
     };
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
-        /*  0*/ { 1, 0, { TU("A"), 1, 0 }, {0}, 0, 0, "A", -1, 3 },
-        /*  1*/ { 1, 0, { TU("A"), 1, 900 }, {0}, 0, 0, "A", -1, 900 },
-        /*  2*/ { 2, 1, { TU("A"), 1, 0 }, {0}, 0, 0, "A", -1, 3 },
-        /*  3*/ { 1, 0, { TU("ABCDE"), 5, 0 }, { 'B', 0xFF, 'C', 0xFF00, 'D' }, 5, 0, "B\377C\377\000D", 6, 3 },
+        /*  0*/ { 1, { { TU("A"), 0, 0 } }, { { TU("A"), 1, 3 } }, 1 },
+        /*  1*/ { 1, { { TU("B\377C\377\000D"), 6, 0 } }, { { TU("B\377C\377\000D"), 6, 3 } }, 1 },
+        /*  2*/ { 2, { { TU("A"), 0, 5 }, { TU("\000\355"), 2, 899 } }, { { TU("A"), 1, 5 }, { TU("\000\355"), 2, 899 } }, 2 },
+        /*  3*/ { 3, { { TU("A"), 1, 5 }, { TU("ABCD"), 0, 900 }, { TU("\000\355"), 2, 899 } }, { { TU("A"), 1, 5 }, { TU("ABCD"), 4, 900 }, { TU("\000\355"), 2, 899 } }, 3 },
     };
     const int data_size = ARRAY_SIZE(data);
     int i, ret;
 
     struct zint_symbol s_symbol = {0};
     struct zint_symbol *symbol = &s_symbol;
-    int expected_length;
 
     char escaped[4096];
     char escaped2[4096];
@@ -1089,46 +1084,41 @@ static void test_rt_cpy_seg(const testCtx *const p_ctx) {
     symbol->debug = debug;
 
     for (i = 0; i < data_size; i++) {
+        int expected_length;
+        unsigned char *expected_source;
+        int expected_eci;
         int seg_idx;
 
         if (testContinue(p_ctx, i)) continue;
 
-        expected_length = data[i].expected_length == -1 ? (int) strlen(data[i].expected) : data[i].expected_length;
-
         assert_nonzero(data[i].seg_count, "i:%d seg_count zero\n", i);
 
-        ret = rt_init_segs(symbol, data[i].seg_count);
-        assert_zero(ret, "i:%d rt_init_segs(%d) %d != 0\n", i, data[i].seg_count, ret);
+        ret = z_ct_cpy_segs(symbol, data[i].segs, data[i].seg_count);
+        assert_zero(ret, "i:%d z_ct_cpy_segs %d != 0\n", i, ret);
 
-        seg_idx = data[i].seg_idx;
-        assert_nonzero(seg_idx >= 0, "i:%d seg_idx %d < 0\n", i, seg_idx);
-        assert_nonzero(seg_idx < data[i].seg_count, "i:%d seg_idx %d >= seg_count 0%d\n",
-                    i, seg_idx, data[i].seg_count);
+        assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+        assert_equal(symbol->content_seg_count, data[i].seg_count, "i:%d content_seg_count %d != %d\n",
+                    i, symbol->content_seg_count, data[i].seg_count);
+        for (seg_idx = 0; seg_idx < data[i].seg_count; seg_idx++) {
+            assert_nonnull(&symbol->content_segs[seg_idx], "i:%d content_segs[%d] NULL\n", i, seg_idx);
+            assert_nonnull(symbol->content_segs[seg_idx].source, "i:%d content_segs[%d].source NULL\n", i, seg_idx);
 
-        if (data[i].ddata_size > 0) {
-            assert_equal(data[i].seg.length, data[i].ddata_size, "i:%d seg_length %d != ddata_size %d\n",
-                        i, data[i].seg.length, data[i].ddata_size);
-            ret = rt_cpy_seg_ddata(symbol, seg_idx, &data[i].seg, data[i].ddata_eci, data[i].ddata);
-            assert_zero(ret, "i:%d rt_cpy_seg_ddata %d != 0\n", i, ret);
-        } else {
-            ret = rt_cpy_seg(symbol, seg_idx, &data[i].seg);
-            assert_zero(ret, "i:%d rt_cpy_segs %d != 0\n", i, ret);
+            expected_length = data[i].expected_content_segs[seg_idx].length;
+            expected_source = data[i].expected_content_segs[seg_idx].source;
+            expected_eci = data[i].expected_content_segs[seg_idx].eci;
+
+            assert_equal(symbol->content_segs[seg_idx].length, expected_length,
+                        "i:%d content_segs[%d].length %d != expected_length %d\n",
+                        i, seg_idx, symbol->content_segs[seg_idx].length, expected_length);
+            assert_zero(memcmp(symbol->content_segs[seg_idx].source, expected_source, expected_length),
+                        "i:%d content_segs[%d].source memcmp(%s, %s, %d) != 0\n", i, seg_idx,
+                        testUtilEscape(ZCCP(symbol->content_segs[seg_idx].source), symbol->content_segs[seg_idx].length,
+                                        escaped, sizeof(escaped)),
+                        testUtilEscape(ZCCP(expected_source), expected_length, escaped2, sizeof(escaped2)),
+                                        expected_length);
+            assert_equal(symbol->content_segs[seg_idx].eci, expected_eci, "i:%d content_segs[%d].eci %d != expected_eci %d\n",
+                        i, seg_idx, symbol->content_segs[seg_idx].eci, expected_eci);
         }
-
-        assert_nonnull(symbol->raw_segs, "i:%d raw_segs NULL\n", i);
-        assert_nonnull(symbol->raw_segs[seg_idx].source, "i:%d raw_segs[%d].source NULL\n", i, seg_idx);
-        assert_equal(symbol->raw_segs[seg_idx].length, expected_length,
-                    "i:%d raw_segs[%d].length %d != expected_length %d\n",
-                    i, seg_idx, symbol->raw_segs[seg_idx].length, expected_length);
-        assert_zero(memcmp(symbol->raw_segs[seg_idx].source, data[i].expected, expected_length),
-                    "i:%d raw_segs[%d].source memcmp(%s, %s, %d) != 0\n", i, seg_idx,
-                    testUtilEscape((const char *) symbol->raw_segs[seg_idx].source, symbol->raw_segs[seg_idx].length,
-                                    escaped, sizeof(escaped)),
-                    testUtilEscape(data[i].expected, expected_length, escaped2, sizeof(escaped2)),
-                    expected_length);
-        assert_equal(symbol->raw_segs[seg_idx].eci, data[i].expected_eci,
-                    "i:%d raw_segs[%d].eci %d != expected_eci %d\n",
-                    i, seg_idx, symbol->raw_segs[seg_idx].eci, data[i].expected_eci);
 
         ZBarcode_Clear(symbol);
     }
@@ -1136,13 +1126,10 @@ static void test_rt_cpy_seg(const testCtx *const p_ctx) {
     testFinish();
 }
 
-static void test_rt_cpy(const testCtx *const p_ctx) {
+static void test_ct_cpy(const testCtx *const p_ctx) {
     int debug = p_ctx->debug;
 
     struct item {
-        int seg_count;
-        int seg_idx;
-
         const char *source;
         int length;
         char separator;
@@ -1155,10 +1142,10 @@ static void test_rt_cpy(const testCtx *const p_ctx) {
     };
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
-        /*  0*/ { 1, 0, "A", -1, '\0', "", -1, "A", -1, 3 },
-        /*  1*/ { 1, 0, "A", -1, ':', "B", -1, "A:B", -1, 3 },
-        /*  2*/ { 1, 0, "A", -1, '\xFF', "B", -1, "AB", -1, 3 },
-        /*  3*/ { 1, 0, "A", -1, '\0', "B", -1, "A\000B", 3, 3 },
+        /*  0*/ { "A", -1, '\0', "", -1, "A", -1, 3 },
+        /*  1*/ { "A", -1, ':', "B", -1, "A:B", -1, 3 },
+        /*  2*/ { "A", -1, '\xFF', "B", -1, "AB", -1, 3 },
+        /*  3*/ { "A", -1, '\0', "B", -1, "A\000B", 3, 3 },
     };
     const int data_size = ARRAY_SIZE(data);
     int i, length, ret;
@@ -1181,33 +1168,30 @@ static void test_rt_cpy(const testCtx *const p_ctx) {
 
         expected_length = data[i].expected_length == -1 ? (int) strlen(data[i].expected) : data[i].expected_length;
 
-        ret = rt_init_segs(symbol, 1);
-        assert_zero(ret, "i:%d rt_init_segs %d != 0\n", i, ret);
-
         length = data[i].length == -1 ? (int) strlen(data[i].source) : data[i].length;
 
         if ((cat_length = data[i].cat_length == -1 ? (int) strlen(data[i].cat) : data[i].cat_length)) {
-            ret = rt_cpy_cat(symbol, TCU(data[i].source), length, data[i].separator, TCU(data[i].cat), cat_length);
-            assert_zero(ret, "i:%d rt_cpy_cat %d != 0\n", i, ret);
+            ret = z_ct_cpy_cat(symbol, TCU(data[i].source), length, data[i].separator, TCU(data[i].cat), cat_length);
+            assert_zero(ret, "i:%d z_ct_cpy_cat %d != 0\n", i, ret);
         } else {
-            ret = rt_cpy(symbol, TCU(data[i].source), length);
-            assert_zero(ret, "i:%d rt_cpy %d != 0\n", i, ret);
+            ret = z_ct_cpy(symbol, TCU(data[i].source), length);
+            assert_zero(ret, "i:%d z_ct_cpy %d != 0\n", i, ret);
         }
 
-        assert_nonnull(symbol->raw_segs, "i:%d raw_segs NULL\n", i);
-        assert_nonnull(symbol->raw_segs[0].source, "i:%d raw_segs[0].source NULL\n", i);
-        assert_equal(symbol->raw_segs[0].length, expected_length,
-                    "i:%d raw_segs[0].length %d != expected_length %d\n",
-                    i, symbol->raw_segs[0].length, expected_length);
-        assert_zero(memcmp(symbol->raw_segs[0].source, data[i].expected, expected_length),
-                    "i:%d raw_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
-                    testUtilEscape((const char *) symbol->raw_segs[0].source, symbol->raw_segs[0].length,
+        assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+        assert_nonnull(symbol->content_segs[0].source, "i:%d content_segs[0].source NULL\n", i);
+        assert_equal(symbol->content_segs[0].length, expected_length,
+                    "i:%d content_segs[0].length %d != expected_length %d\n",
+                    i, symbol->content_segs[0].length, expected_length);
+        assert_zero(memcmp(symbol->content_segs[0].source, data[i].expected, expected_length),
+                    "i:%d content_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
+                    testUtilEscape((const char *) symbol->content_segs[0].source, symbol->content_segs[0].length,
                                     escaped, sizeof(escaped)),
                     testUtilEscape(data[i].expected, expected_length, escaped2, sizeof(escaped2)),
                     expected_length);
-        assert_equal(symbol->raw_segs[0].eci, data[i].expected_eci,
-                    "i:%d raw_segs[0].eci %d != expected_eci %d\n",
-                    i, symbol->raw_segs[0].eci, data[i].expected_eci);
+        assert_equal(symbol->content_segs[0].eci, data[i].expected_eci,
+                    "i:%d content_segs[0].eci %d != expected_eci %d\n",
+                    i, symbol->content_segs[0].eci, data[i].expected_eci);
 
         ZBarcode_Clear(symbol);
     }
@@ -1215,7 +1199,71 @@ static void test_rt_cpy(const testCtx *const p_ctx) {
     testFinish();
 }
 
-static void test_rt_printf_256(const testCtx *const p_ctx) {
+static void test_ct_cpy_iso8859_1(const testCtx *const p_ctx) {
+    int debug = p_ctx->debug;
+
+    struct item {
+        const char *source;
+        int length;
+
+        const char *expected;
+        int expected_length;
+        int expected_eci;
+    };
+    /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
+    static const struct item data[] = {
+        /*  0*/ { "A", -1, "A", -1, 3 },
+        /*  1*/ { "\000AB\177", 4, "\000AB\177", 4, 3 },
+        /*  2*/ { "A\200", -1, "A\302\200", -1, 3 },
+        /*  3*/ { "A\237\240\277\300B\377C", -1, "A\302\237\302\240\302\277\303\200B\303\277C", -1, 3 },
+    };
+    const int data_size = ARRAY_SIZE(data);
+    int i, length, ret;
+
+    struct zint_symbol s_symbol = {0};
+    struct zint_symbol *symbol = &s_symbol;
+    int expected_length;
+
+    char escaped[4096];
+    char escaped2[4096];
+
+    testStart(p_ctx->func_name);
+
+    symbol->debug = debug;
+
+    for (i = 0; i < data_size; i++) {
+
+        if (testContinue(p_ctx, i)) continue;
+
+        expected_length = data[i].expected_length == -1 ? (int) strlen(data[i].expected) : data[i].expected_length;
+
+        length = data[i].length == -1 ? (int) strlen(data[i].source) : data[i].length;
+
+        ret = z_ct_cpy_iso8859_1(symbol, TCU(data[i].source), length);
+        assert_zero(ret, "i:%d z_ct_cpy_iso8859_1 %d != 0\n", i, ret);
+
+        assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+        assert_nonnull(symbol->content_segs[0].source, "i:%d content_segs[0].source NULL\n", i);
+        assert_equal(symbol->content_segs[0].length, expected_length,
+                    "i:%d content_segs[0].length %d != expected_length %d\n",
+                    i, symbol->content_segs[0].length, expected_length);
+        assert_zero(memcmp(symbol->content_segs[0].source, data[i].expected, expected_length),
+                    "i:%d content_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
+                    testUtilEscape((const char *) symbol->content_segs[0].source, symbol->content_segs[0].length,
+                                    escaped, sizeof(escaped)),
+                    testUtilEscape(data[i].expected, expected_length, escaped2, sizeof(escaped2)),
+                    expected_length);
+        assert_equal(symbol->content_segs[0].eci, data[i].expected_eci,
+                    "i:%d content_segs[0].eci %d != expected_eci %d\n",
+                    i, symbol->content_segs[0].eci, data[i].expected_eci);
+
+        ZBarcode_Clear(symbol);
+    }
+
+    testFinish();
+}
+
+static void test_ct_printf_256(const testCtx *const p_ctx) {
     int debug = p_ctx->debug;
 
     struct item {
@@ -1252,31 +1300,28 @@ static void test_rt_printf_256(const testCtx *const p_ctx) {
 
         expected_length = (int) strlen(data[i].expected);
 
-        ret = rt_init_segs(symbol, 1);
-        assert_zero(ret, "i:%d rt_init_segs %d != 0\n", i, ret);
-
         if (data[i].num_args == 1) {
-            ret = rt_printf_256(symbol, data[i].fmt, data[i].data1);
-            assert_zero(ret, "i:%d rt_printf_256 1 arg ret %d != 0\n", i, ret);
+            ret = z_ct_printf_256(symbol, data[i].fmt, data[i].data1);
+            assert_zero(ret, "i:%d z_ct_printf_256 1 arg ret %d != 0\n", i, ret);
         } else if (data[i].num_args == 2) {
-            ret = rt_printf_256(symbol, data[i].fmt, data[i].data1, data[i].data2);
-            assert_zero(ret, "i:%d rt_printf_256 2 args ret %d != 0\n", i, ret);
+            ret = z_ct_printf_256(symbol, data[i].fmt, data[i].data1, data[i].data2);
+            assert_zero(ret, "i:%d z_ct_printf_256 2 args ret %d != 0\n", i, ret);
         } else {
             assert_zero(1, "i:%d, bad num_args\n", i);
         }
 
-        assert_nonnull(symbol->raw_segs, "i:%d raw_segs NULL\n", i);
-        assert_nonnull(symbol->raw_segs[0].source, "i:%d raw_segs[0].source NULL\n", i);
-        assert_equal(symbol->raw_segs[0].length, expected_length,
-                    "i:%d raw_segs[0].length %d != expected_length %d\n",
-                    i, symbol->raw_segs[0].length, expected_length);
-        assert_zero(memcmp(symbol->raw_segs[0].source, data[i].expected, expected_length),
-                    "i:%d raw_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
-                    testUtilEscape((const char *) symbol->raw_segs[0].source, symbol->raw_segs[0].length,
+        assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+        assert_nonnull(symbol->content_segs[0].source, "i:%d content_segs[0].source NULL\n", i);
+        assert_equal(symbol->content_segs[0].length, expected_length,
+                    "i:%d content_segs[0].length %d != expected_length %d\n",
+                    i, symbol->content_segs[0].length, expected_length);
+        assert_zero(memcmp(symbol->content_segs[0].source, data[i].expected, expected_length),
+                    "i:%d content_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
+                    testUtilEscape((const char *) symbol->content_segs[0].source, symbol->content_segs[0].length,
                                     escaped, sizeof(escaped)),
                     testUtilEscape(data[i].expected, expected_length, escaped2, sizeof(escaped2)),
                     expected_length);
-        assert_equal(symbol->raw_segs[0].eci, 3, "i:%d raw_segs[0].eci %d != 3\n", i, symbol->raw_segs[0].eci);
+        assert_equal(symbol->content_segs[0].eci, 3, "i:%d content_segs[0].eci %d != 3\n", i, symbol->content_segs[0].eci);
 
         ZBarcode_Clear(symbol);
     }
@@ -1339,8 +1384,8 @@ static void test_set_height(const testCtx *const p_ctx) {
         }
         symbol->height = data[i].height;
 
-        ret = set_height(symbol, data[i].min_row_height, data[i].default_height, data[i].max_height,
-                        data[i].no_errtxt);
+        ret = z_set_height(symbol, data[i].min_row_height, data[i].default_height, data[i].max_height,
+                            data[i].no_errtxt);
         assert_equal(ret, data[i].ret, "i:%d ret %d != %d\n", i, ret, data[i].ret);
         assert_equal(symbol->height, data[i].expected_height, "i:%d symbol->height %g != %g\n",
                     i, symbol->height, data[i].expected_height);
@@ -1351,7 +1396,7 @@ static void test_set_height(const testCtx *const p_ctx) {
     testFinish();
 }
 
-INTERNAL void debug_test_codeword_dump_int(struct zint_symbol *symbol, const int *codewords, const int length);
+INTERNAL void z_debug_test_codeword_dump_int(struct zint_symbol *symbol, const int *codewords, const int length);
 
 static void test_debug_test_codeword_dump_int(const testCtx *const p_ctx) {
     int debug = p_ctx->debug;
@@ -1380,7 +1425,7 @@ static void test_debug_test_codeword_dump_int(const testCtx *const p_ctx) {
 
         if (testContinue(p_ctx, i)) continue;
 
-        debug_test_codeword_dump_int(symbol, data[i].codewords, data[i].length);
+        z_debug_test_codeword_dump_int(symbol, data[i].codewords, data[i].length);
         assert_nonzero(strlen(symbol->errtxt) < 92, "i:%d strlen(%s) >= 92 (%d)\n",
                     i, symbol->errtxt, (int) strlen(symbol->errtxt));
         assert_zero(strcmp(symbol->errtxt, data[i].expected), "i:%d strcmp(%s, %s) != 0 (%d, %d)\n",
@@ -1410,9 +1455,10 @@ int main(int argc, char *argv[]) {
         { "test_hrt_cpy_cat_nochk", test_hrt_cpy_cat_nochk },
         { "test_hrt_printf_nochk", test_hrt_printf_nochk },
         { "test_hrt_conv_gs1_brackets_nochk", test_hrt_conv_gs1_brackets_nochk },
-        { "test_rt_cpy_seg", test_rt_cpy_seg },
-        { "test_rt_cpy", test_rt_cpy },
-        { "test_rt_printf_256", test_rt_printf_256 },
+        { "test_ct_cpy_segs", test_ct_cpy_segs },
+        { "test_ct_cpy", test_ct_cpy },
+        { "test_ct_cpy_iso8859_1", test_ct_cpy_iso8859_1 },
+        { "test_ct_printf_256", test_ct_printf_256 },
         { "test_set_height", test_set_height },
         { "test_debug_test_codeword_dump_int", test_debug_test_codeword_dump_int },
     };

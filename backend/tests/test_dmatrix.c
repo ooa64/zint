@@ -688,7 +688,7 @@ static void test_options(const testCtx *const p_ctx) {
         /* 81*/ { BARCODE_DATAMATRIX, GS1_MODE | GS1PARENS_MODE, -1, -1, -1, -1, { 0, 0, "" }, "(90)12", 0, 10, 10, "", 1, 1, "" },
         /* 82*/ { BARCODE_DATAMATRIX, GS1_MODE, -1, -1, -1, -1, { 0, 0, "" }, "[90](", 0, 10, 10, "", 1, 1, "" },
         /* 83*/ { BARCODE_DATAMATRIX, GS1_MODE | GS1PARENS_MODE, -1, -1, -1, -1, { 0, 0, "" }, "(90)(", ZINT_ERROR_INVALID_DATA, -1, -1, "Error 253: Malformed AI in input (brackets don't match)", 0, 1, "" },
-        /* 84*/ { BARCODE_DATAMATRIX, GS1_MODE | GS1PARENS_MODE, -1, -1, -1, -1, { 0, 0, "" }, "(90)\\(", ZINT_ERROR_INVALID_DATA, -1, -1, "Error 253: Malformed AI in input (brackets don't match)", 0, 1, "" },
+        /* 84*/ { BARCODE_DATAMATRIX, GS1_MODE | GS1PARENS_MODE, -1, -1, -1, -1, { 0, 0, "" }, "(90)\\(", 0, 10, 10, "", 1, 1, "" }, /* Escaped parens now work without ESCAPE_MODE */
         /* 85*/ { BARCODE_DATAMATRIX, GS1_MODE | ESCAPE_MODE | GS1PARENS_MODE, -1, -1, -1, -1, { 0, 0, "" }, "(90)\\(", 0, 10, 10, "", 1, 1, "" },
         /* 86*/ { BARCODE_DATAMATRIX, -1, -1, -1, -1, -1, { 1, 2, "" }, "1", 0, 12, 12, "", 2, 1, "" },
         /* 87*/ { BARCODE_DATAMATRIX, -1, -1, -1, -1, -1, { 16, 16, "" }, "1", 0, 12, 12, "", 2, 1, "" },
@@ -925,8 +925,8 @@ static void test_reader_init(const testCtx *const p_ctx) {
 
 #define ZINT_TEST_ENCODING
 #ifdef ZINT_TEST_ENCODING
-INTERNAL int dm_encode_test(struct zint_symbol *symbol, const unsigned char source[], const int length, const int eci,
-                const int last_seg, const int gs1, unsigned char target[], int *p_tp);
+INTERNAL int zint_test_dm_encode(struct zint_symbol *symbol, const unsigned char source[], const int length,
+                const int eci, const int last_seg, const int gs1, unsigned char target[], int *p_tp);
 #endif
 
 static void test_input(const testCtx *const p_ctx) {
@@ -1319,9 +1319,8 @@ static void test_input(const testCtx *const p_ctx) {
                                 i, expected_rows_width, prev_expected_rows_width);
 
                     if ((data[i].input_mode & 0x07) == GS1_MODE) {
-                        int data_len = length;
-                        ret = gs1_verify(symbol, ZUCP(data[i].data), &data_len, reduced, &length);
-                        assert_zero(ret, "i:%d gs1_verify() ret %d != 0 (%s)\n", i, ret, symbol->errtxt);
+                        ret = zint_gs1_verify(symbol, ZUCP(data[i].data), length, reduced, &length);
+                        assert_zero(ret, "i:%d zint_gs1_verify() ret %d != 0 (%s)\n", i, ret, symbol->errtxt);
                         text = reduced;
                     } else {
                         text = ZCUCP(data[i].data);
@@ -1331,7 +1330,7 @@ static void test_input(const testCtx *const p_ctx) {
                     symbol->option_2 = data[i].option_2 != -1 ? data[i].option_2 : 0; /* Restore option_2 */
                     gs1 = (symbol->input_mode & 0x07) != GS1_MODE ? 0 :
                             (symbol->output_options & GS1_GS_SEPARATOR) ? 2 : 1;
-                    ret = dm_encode_test(symbol, text, length, symbol->eci, last_seg, gs1, binary[0], &binlen);
+                    ret = zint_test_dm_encode(symbol, text, length, symbol->eci, last_seg, gs1, binary[0], &binlen);
                     assert_zero(ret, "i:%d dm_encode() FAST_MODE ret %d != 0 (%s)\n", i, ret, symbol->errtxt);
 
                     binlens[0] = binlen;
@@ -1341,7 +1340,7 @@ static void test_input(const testCtx *const p_ctx) {
                     gs1 = (symbol->input_mode & 0x07) != GS1_MODE ? 0 :
                             (symbol->output_options & GS1_GS_SEPARATOR) ? 2 : 1;
                     symbol->option_2 = data[i].option_2 != -1 ? data[i].option_2 : 0; /* Restore option_2 */
-                    ret = dm_encode_test(symbol, text, length, symbol->eci, last_seg, gs1, binary[1], &binlen);
+                    ret = zint_test_dm_encode(symbol, text, length, symbol->eci, last_seg, gs1, binary[1], &binlen);
                     assert_zero(ret, "i:%d dm_encode() minimal ret %d != 0 (%s)\n", i, ret, symbol->errtxt);
 
                     binlens[1] = binlen;
@@ -5917,7 +5916,7 @@ static void test_encode(const testCtx *const p_ctx) {
                     symbol->input_mode = data[i - 1].input_mode;
                     gs1 = (symbol->input_mode & 0x07) != GS1_MODE ? 0 :
                             (symbol->output_options & GS1_GS_SEPARATOR) ? 2 : 1;
-                    ret = dm_encode_test(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1,
+                    ret = zint_test_dm_encode(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1,
                                         binary[0], &binlen);
                     assert_zero(ret, "i:%d dm_encode() FAST_MODE ret %d != 0 (%s)\n", i, ret, symbol->errtxt);
 
@@ -5927,7 +5926,7 @@ static void test_encode(const testCtx *const p_ctx) {
                     symbol->input_mode = data[i].input_mode;
                     gs1 = (symbol->input_mode & 0x07) != GS1_MODE ? 0 :
                             (symbol->output_options & GS1_GS_SEPARATOR) ? 2 : 1;
-                    ret = dm_encode_test(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1,
+                    ret = zint_test_dm_encode(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1,
                                         binary[1], &binlen);
                     assert_zero(ret, "i:%d dm_encode() minimal ret %d != 0 (%s)\n", i, ret, symbol->errtxt);
 
@@ -6314,9 +6313,9 @@ static void test_encode_segs(const testCtx *const p_ctx) {
         if (p_ctx->generate) {
             char escaped1[4096];
             char escaped2[4096];
-            int length = data[i].segs[0].length == -1 ? (int) ustrlen(data[i].segs[0].source) : data[i].segs[0].length;
-            int length1 = data[i].segs[1].length == -1 ? (int) ustrlen(data[i].segs[1].source) : data[i].segs[1].length;
-            int length2 = data[i].segs[2].length == -1 ? (int) ustrlen(data[i].segs[2].source) : data[i].segs[2].length;
+            int length = data[i].segs[0].length == -1 ? (int) z_ustrlen(data[i].segs[0].source) : data[i].segs[0].length;
+            int length1 = data[i].segs[1].length == -1 ? (int) z_ustrlen(data[i].segs[1].source) : data[i].segs[1].length;
+            int length2 = data[i].segs[2].length == -1 ? (int) z_ustrlen(data[i].segs[2].source) : data[i].segs[2].length;
             printf("        /*%3d*/ { %s, %s, %s, %d, %s, { %d, %d, \"%s\" }, { { TU(\"%s\"), %d, %d }, { TU(\"%s\"), %d, %d }, { TU(\"%s\"), %d, %d } }, %s, %d, %d, %d, \"%s\",\n",
                     i, testUtilBarcodeName(data[i].symbology), testUtilInputModeName(data[i].input_mode),
                     testUtilOutputOptionsName(data[i].output_options),
@@ -6410,26 +6409,27 @@ static void test_rt(const testCtx *const p_ctx) {
         int expected_eci;
         const char *expected;
         int expected_length;
-        int expected_raw_eci;
+        int expected_content_eci;
     };
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
         /*  0*/ { BARCODE_DATAMATRIX, UNICODE_MODE, -1, -1, "é", -1, 0, 0, "", -1, 0 },
-        /*  1*/ { BARCODE_DATAMATRIX, UNICODE_MODE, -1, BARCODE_RAW_TEXT, "é", -1, 0, 0, "\351", -1, 3 },
+        /*  1*/ { BARCODE_DATAMATRIX, UNICODE_MODE, -1, BARCODE_CONTENT_SEGS, "é", -1, 0, 0, "é", -1, 3 }, /* Now UTF-8, not converted */
         /*  2*/ { BARCODE_DATAMATRIX, UNICODE_MODE, -1, -1, "ก", -1, ZINT_WARN_USES_ECI, 13, "", -1, 0 },
-        /*  3*/ { BARCODE_DATAMATRIX, UNICODE_MODE, -1, BARCODE_RAW_TEXT, "ก", -1, ZINT_WARN_USES_ECI, 13, "\241", -1, 13 },
+        /*  3*/ { BARCODE_DATAMATRIX, UNICODE_MODE, -1, BARCODE_CONTENT_SEGS, "ก", -1, ZINT_WARN_USES_ECI, 13, "ก", -1, 13 },
         /*  4*/ { BARCODE_DATAMATRIX, UNICODE_MODE | ESCAPE_MODE, -1, -1, "[)>\\R05\\GA\\R\\E", -1, 0, 0, "", -1, 0 },
-        /*  5*/ { BARCODE_DATAMATRIX, UNICODE_MODE | ESCAPE_MODE, -1, BARCODE_RAW_TEXT, "[)>\\R05\\GA\\R\\E", -1, 0, 0, "[)>\03605\035A\036\004", -1, 3 }, /* Full content including Macro05 */
+        /*  5*/ { BARCODE_DATAMATRIX, UNICODE_MODE | ESCAPE_MODE, -1, BARCODE_CONTENT_SEGS, "[)>\\R05\\GA\\R\\E", -1, 0, 0, "[)>\03605\035A\036\004", -1, 3 }, /* Full content including Macro05 */
         /*  6*/ { BARCODE_DATAMATRIX, DATA_MODE, -1, -1, "\351", -1, 0, 0, "", -1, 0 },
-        /*  7*/ { BARCODE_DATAMATRIX, DATA_MODE, -1, BARCODE_RAW_TEXT, "\351", -1, 0, 0, "\351", -1, 3 },
+        /*  7*/ { BARCODE_DATAMATRIX, DATA_MODE, -1, BARCODE_CONTENT_SEGS, "\351", -1, 0, 0, "\351", -1, 3 },
         /*  8*/ { BARCODE_DATAMATRIX, UNICODE_MODE, 26, -1, "é", -1, 0, 26, "", -1, 0 },
-        /*  9*/ { BARCODE_DATAMATRIX, UNICODE_MODE, 26, BARCODE_RAW_TEXT, "é", -1, 0, 26, "é", -1, 26 },
+        /*  9*/ { BARCODE_DATAMATRIX, UNICODE_MODE, 26, BARCODE_CONTENT_SEGS, "é", -1, 0, 26, "é", -1, 26 },
         /* 10*/ { BARCODE_DATAMATRIX, UNICODE_MODE, 899, -1, "é", -1, 0, 899, "", -1, 0 },
-        /* 11*/ { BARCODE_DATAMATRIX, UNICODE_MODE, 899, BARCODE_RAW_TEXT, "é", -1, 0, 899, "é", -1, 899 },
+        /* 11*/ { BARCODE_DATAMATRIX, UNICODE_MODE, 899, BARCODE_CONTENT_SEGS, "é", -1, 0, 899, "é", -1, 899 },
         /* 12*/ { BARCODE_DATAMATRIX, GS1_MODE, -1, -1, "[01]04912345123459[15]970331[30]128[10]ABC123", -1, 0, 0, "", -1, 0 },
-        /* 13*/ { BARCODE_DATAMATRIX, GS1_MODE, -1, BARCODE_RAW_TEXT, "[01]04912345123459[15]970331[30]128[10]ABC123", -1, 0, 0, "01049123451234591597033130128\03510ABC123", -1, 3 },
-        /* 14*/ { BARCODE_HIBC_DM, UNICODE_MODE, -1, -1, "H123ABC01234567890", -1, 0, 0, "", -1, 0 },
-        /* 15*/ { BARCODE_HIBC_DM, UNICODE_MODE, -1, BARCODE_RAW_TEXT, "H123ABC01234567890", -1, 0, 0, "+H123ABC01234567890D", -1, 3 },
+        /* 13*/ { BARCODE_DATAMATRIX, GS1_MODE, -1, BARCODE_CONTENT_SEGS, "[01]04912345123459[15]970331[30]128[10]ABC123", -1, 0, 0, "01049123451234591597033130128\03510ABC123", -1, 3 },
+        /* 14*/ { BARCODE_DATAMATRIX, GS1_MODE, 28, BARCODE_CONTENT_SEGS, "[01]04912345123459[15]970331[30]128[10]ABC123", -1, 0, 28, "01049123451234591597033130128\03510ABC123", -1, 3 }, /* Note: content seg ECI rremains at default 3 */
+        /* 15*/ { BARCODE_HIBC_DM, UNICODE_MODE, -1, -1, "H123ABC01234567890", -1, 0, 0, "", -1, 0 },
+        /* 16*/ { BARCODE_HIBC_DM, UNICODE_MODE, -1, BARCODE_CONTENT_SEGS, "H123ABC01234567890", -1, 0, 0, "+H123ABC01234567890D", -1, 3 },
     };
     const int data_size = ARRAY_SIZE(data);
     int i, length, ret;
@@ -6461,23 +6461,23 @@ static void test_rt(const testCtx *const p_ctx) {
         if (ret < ZINT_ERROR) {
             assert_equal(symbol->eci, data[i].expected_eci, "i:%d eci %d != %d\n",
                         i, symbol->eci, data[i].expected_eci);
-            if (symbol->output_options & BARCODE_RAW_TEXT) {
-                assert_nonnull(symbol->raw_segs, "i:%d raw_segs NULL\n", i);
-                assert_nonnull(symbol->raw_segs[0].source, "i:%d raw_segs[0].source NULL\n", i);
-                assert_equal(symbol->raw_segs[0].length, expected_length,
-                            "i:%d raw_segs[0].length %d != expected_length %d\n",
-                            i, symbol->raw_segs[0].length, expected_length);
-                assert_zero(memcmp(symbol->raw_segs[0].source, data[i].expected, expected_length),
-                            "i:%d raw_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
-                            testUtilEscape((const char *) symbol->raw_segs[0].source, symbol->raw_segs[0].length,
+            if (symbol->output_options & BARCODE_CONTENT_SEGS) {
+                assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+                assert_nonnull(symbol->content_segs[0].source, "i:%d content_segs[0].source NULL\n", i);
+                assert_equal(symbol->content_segs[0].length, expected_length,
+                            "i:%d content_segs[0].length %d != expected_length %d\n",
+                            i, symbol->content_segs[0].length, expected_length);
+                assert_zero(memcmp(symbol->content_segs[0].source, data[i].expected, expected_length),
+                            "i:%d content_segs[0].source memcmp(%s, %s, %d) != 0\n", i,
+                            testUtilEscape((const char *) symbol->content_segs[0].source, symbol->content_segs[0].length,
                                             escaped, sizeof(escaped)),
                             testUtilEscape(data[i].expected, expected_length, escaped2, sizeof(escaped2)),
                             expected_length);
-                assert_equal(symbol->raw_segs[0].eci, data[i].expected_raw_eci,
-                            "i:%d raw_segs[0].eci %d != expected_raw_eci %d\n",
-                            i, symbol->raw_segs[0].eci, data[i].expected_raw_eci);
+                assert_equal(symbol->content_segs[0].eci, data[i].expected_content_eci,
+                            "i:%d content_segs[0].eci %d != expected_content_eci %d\n",
+                            i, symbol->content_segs[0].eci, data[i].expected_content_eci);
             } else {
-                assert_null(symbol->raw_segs, "i:%d raw_segs not NULL\n", i);
+                assert_null(symbol->content_segs, "i:%d content_segs not NULL\n", i);
             }
         }
 
@@ -6498,17 +6498,17 @@ static void test_rt_segs(const testCtx *const p_ctx) {
 
         int expected_rows;
         int expected_width;
-        struct zint_seg expected_raw_segs[3];
-        int expected_raw_seg_count;
+        struct zint_seg expected_content_segs[3];
+        int expected_content_seg_count;
     };
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
         /*  0*/ { UNICODE_MODE, -1, { { TU("¶"), -1, 0 }, { TU("Ж"), -1, 7 }, {0} }, 0, 14, 14, {{0}}, 0 },
-        /*  1*/ { UNICODE_MODE, BARCODE_RAW_TEXT, { { TU("¶"), -1, 0 }, { TU("Ж"), -1, 7 }, { TU(""), 0, 0 } }, 0, 14, 14, { { TU("\266"), 1, 3 }, { TU("\266"), 1, 7 }, {0} }, 2 },
+        /*  1*/ { UNICODE_MODE, BARCODE_CONTENT_SEGS, { { TU("¶"), -1, 0 }, { TU("Ж"), -1, 7 }, { TU(""), 0, 0 } }, 0, 14, 14, { { TU("¶"), 2, 3 }, { TU("Ж"), 2, 7 }, {0} }, 2 }, /* Now UTF-8, not converted */
         /*  2*/ { UNICODE_MODE, -1, { { TU("éé"), -1, 0 }, { TU("กขฯ"), -1, 0 }, { TU("βββ"), -1, 0 } }, ZINT_WARN_USES_ECI, 18, 18, {{0}}, 0 },
-        /*  3*/ { UNICODE_MODE, BARCODE_RAW_TEXT, { { TU("éé"), -1, 0 }, { TU("กขฯ"), -1, 0 }, { TU("βββ"), -1, 0 } }, ZINT_WARN_USES_ECI, 18, 18, { { TU("\351\351"), 2, 3 }, { TU("\241\242\317"), 3, 13 }, { TU("\342\342\342"), 3, 9 } }, 3 },
+        /*  3*/ { UNICODE_MODE, BARCODE_CONTENT_SEGS, { { TU("éé"), -1, 0 }, { TU("กขฯ"), -1, 0 }, { TU("βββ"), -1, 0 } }, ZINT_WARN_USES_ECI, 18, 18, { { TU("éé"), 4, 3 }, { TU("กขฯ"), 9, 13 }, { TU("βββ"), 6, 9 } }, 3 },
         /*  4*/ { DATA_MODE, -1, { { TU("¶"), -1, 26 }, { TU("Ж"), -1, 0 }, { TU("\223\137"), -1, 20 } }, 0, 18, 18, {{0}}, 0 },
-        /*  5*/ { DATA_MODE, BARCODE_RAW_TEXT, { { TU("¶"), -1, 26 }, { TU("Ж"), -1, 0 }, { TU("\223\137"), -1, 20 } }, 0, 18, 18, { { TU("¶"), 2, 26 }, { TU("\320\226"), 2, 3 }, { TU("\223\137"), 2, 20 } }, 3 },
+        /*  5*/ { DATA_MODE, BARCODE_CONTENT_SEGS, { { TU("¶"), -1, 26 }, { TU("Ж"), -1, 0 }, { TU("\223\137"), -1, 20 } }, 0, 18, 18, { { TU("¶"), 2, 26 }, { TU("\320\226"), 2, 3 }, { TU("\223\137"), 2, 20 } }, 3 },
     };
     const int data_size = ARRAY_SIZE(data);
     int i, j, seg_count, ret;
@@ -6542,31 +6542,31 @@ static void test_rt_segs(const testCtx *const p_ctx) {
         assert_equal(symbol->width, data[i].expected_width, "i:%d symbol->width %d != %d\n",
                     i, symbol->width, data[i].expected_width);
 
-        assert_equal(symbol->raw_seg_count, data[i].expected_raw_seg_count, "i:%d symbol->raw_seg_count %d != %d\n",
-                    i, symbol->raw_seg_count, data[i].expected_raw_seg_count);
-        if (symbol->output_options & BARCODE_RAW_TEXT) {
-            assert_nonnull(symbol->raw_segs, "i:%d raw_segs NULL\n", i);
-            for (j = 0; j < symbol->raw_seg_count; j++) {
-                assert_nonnull(symbol->raw_segs[j].source, "i:%d raw_segs[%d].source NULL\n", i, j);
+        assert_equal(symbol->content_seg_count, data[i].expected_content_seg_count, "i:%d symbol->content_seg_count %d != %d\n",
+                    i, symbol->content_seg_count, data[i].expected_content_seg_count);
+        if (symbol->output_options & BARCODE_CONTENT_SEGS) {
+            assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+            for (j = 0; j < symbol->content_seg_count; j++) {
+                assert_nonnull(symbol->content_segs[j].source, "i:%d content_segs[%d].source NULL\n", i, j);
 
-                expected_length = data[i].expected_raw_segs[j].length;
+                expected_length = data[i].expected_content_segs[j].length;
 
-                assert_equal(symbol->raw_segs[j].length, expected_length,
-                            "i:%d raw_segs[%d].length %d != expected_length %d\n",
-                            i, j, symbol->raw_segs[j].length, expected_length);
-                assert_zero(memcmp(symbol->raw_segs[j].source, data[i].expected_raw_segs[j].source, expected_length),
-                            "i:%d raw_segs[%d].source memcmp(%s, %s, %d) != 0\n", i, j,
-                            testUtilEscape((const char *) symbol->raw_segs[j].source, expected_length, escaped,
+                assert_equal(symbol->content_segs[j].length, expected_length,
+                            "i:%d content_segs[%d].length %d != expected_length %d\n",
+                            i, j, symbol->content_segs[j].length, expected_length);
+                assert_zero(memcmp(symbol->content_segs[j].source, data[i].expected_content_segs[j].source, expected_length),
+                            "i:%d content_segs[%d].source memcmp(%s, %s, %d) != 0\n", i, j,
+                            testUtilEscape((const char *) symbol->content_segs[j].source, expected_length, escaped,
                                             sizeof(escaped)),
-                            testUtilEscape((const char *) data[i].expected_raw_segs[j].source, expected_length,
+                            testUtilEscape((const char *) data[i].expected_content_segs[j].source, expected_length,
                                             escaped2, sizeof(escaped2)),
                             expected_length);
-                assert_equal(symbol->raw_segs[j].eci, data[i].expected_raw_segs[j].eci,
-                            "i:%d raw_segs[%d].eci %d != expected_raw_segs.eci %d\n",
-                            i, j, symbol->raw_segs[j].eci, data[i].expected_raw_segs[j].eci);
+                assert_equal(symbol->content_segs[j].eci, data[i].expected_content_segs[j].eci,
+                            "i:%d content_segs[%d].eci %d != expected_content_segs.eci %d\n",
+                            i, j, symbol->content_segs[j].eci, data[i].expected_content_segs[j].eci);
             }
         } else {
-            assert_null(symbol->raw_segs, "i:%d raw_segs not NULL\n", i);
+            assert_null(symbol->content_segs, "i:%d content_segs not NULL\n", i);
         }
 
         ZBarcode_Delete(symbol);
@@ -7637,7 +7637,8 @@ static void test_minimalenc(const testCtx *const p_ctx) {
         binlen = 0;
         symbol->input_mode |= FAST_MODE;
         gs1 = (symbol->input_mode & 0x07) != GS1_MODE ? 0 : (symbol->output_options & GS1_GS_SEPARATOR) ? 2 : 1;
-        ret = dm_encode_test(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1, binary[0], &binlen);
+        ret = zint_test_dm_encode(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1, binary[0],
+                                    &binlen);
         assert_equal(ret, data[i].ret, "i:%d dm_encode() FAST_MODE ret %d != %d (%s)\n",
                     i, ret, data[i].ret, symbol->errtxt);
 
@@ -7646,7 +7647,8 @@ static void test_minimalenc(const testCtx *const p_ctx) {
         binlen = 0;
         symbol->input_mode &= ~FAST_MODE;
         gs1 = (symbol->input_mode & 0x07) != GS1_MODE ? 0 : (symbol->output_options & GS1_GS_SEPARATOR) ? 2 : 1;
-        ret = dm_encode_test(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1, binary[1], &binlen);
+        ret = zint_test_dm_encode(symbol, ZCUCP(data[i].data), length, symbol->eci, last_seg, gs1, binary[1],
+                                    &binlen);
         assert_equal(ret, data[i].ret, "i:%d dm_encode() minimal ret %d != %d (%s)\n",
                     i, ret, data[i].ret, symbol->errtxt);
 

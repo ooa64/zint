@@ -199,7 +199,7 @@ namespace Zint {
             m_compliant_height(false),
             m_rotate_angle(0),
             m_eci(0),
-            m_gs1parens(false), m_gs1nocheck(false),
+            m_gs1parens(false), m_gs1nocheck(false), m_gs1syntaxengine(false),
             m_reader_init(false),
             m_guard_whitespace(false),
             m_embed_vector_font(false),
@@ -277,6 +277,9 @@ namespace Zint {
         }
         if (m_gs1nocheck) {
             m_zintSymbol->input_mode |= GS1NOCHECK_MODE;
+        }
+        if (m_gs1syntaxengine) {
+            m_zintSymbol->input_mode |= GS1SYNTAXENGINE_MODE;
         }
         m_zintSymbol->eci = m_eci;
         m_zintSymbol->dpmm = m_dpmm;
@@ -736,6 +739,15 @@ namespace Zint {
 
     void QZint::setGS1NoCheck(bool gs1NoCheck) {
         m_gs1nocheck = gs1NoCheck;
+    }
+
+    /* Use GS1 Syntax Engine to validate GS1 data */
+    bool QZint::gs1SyntaxEngine() const {
+        return m_gs1syntaxengine;
+    }
+
+    void QZint::setGS1SyntaxEngine(bool gs1SyntaxEngine) {
+        m_gs1syntaxengine = gs1SyntaxEngine;
     }
 
     /* Reader Initialisation (Programming) */
@@ -1233,6 +1245,11 @@ namespace Zint {
         return ZBarcode_NoPng() == 1;
     }
 
+    /* Whether Zint library "libzint" built with PNG support or not */
+    bool QZint::haveGS1SyntaxEngine() {
+        return ZBarcode_HaveGS1SyntaxEngine() == 1;
+    }
+
     /* Version of Zint library "libzint" linked to */
     int QZint::getVersion() {
         return ZBarcode_Version();
@@ -1345,9 +1362,16 @@ namespace Zint {
         arg_bool(cmd, "--fullmultibyte", supportsFullMultibyte() && (option3() & 0xFF) == ZINT_FULL_MULTIBYTE);
 
         if (supportsGS1()) {
-            arg_bool(cmd, "--gs1", (inputMode() & 0x07) == GS1_MODE);
-            arg_bool(cmd, "--gs1parens", gs1Parens() || (inputMode() & GS1PARENS_MODE));
-            arg_bool(cmd, "--gs1nocheck", gs1NoCheck() || (inputMode() & GS1NOCHECK_MODE));
+            bool gs1_implied = false;
+            if (gs1Parens() || (inputMode() & GS1PARENS_MODE)) {
+                arg_bool(cmd, "--gs1parens", (gs1_implied = true));
+            }
+            if (gs1NoCheck() || (inputMode() & GS1NOCHECK_MODE)) {
+                arg_bool(cmd, "--gs1nocheck", (gs1_implied = true));
+            } else if (gs1SyntaxEngine() || (inputMode() & GS1SYNTAXENGINE_MODE)) {
+                arg_bool(cmd, "--gs1strict", (gs1_implied = true));
+            }
+            arg_bool(cmd, "--gs1", (inputMode() & 0x07) == GS1_MODE && !gs1_implied);
             arg_bool(cmd, "--gssep", gsSep());
         }
 

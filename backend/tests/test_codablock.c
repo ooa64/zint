@@ -295,32 +295,32 @@ static void test_hrt(const testCtx *const p_ctx) {
         int length;
 
         const char *expected;
-        const char *expected_raw;
-        int expected_raw_length;
+        const char *expected_content;
+        int expected_content_length;
     };
     /* s/\/\*[ 0-9]*\*\//\=printf("\/\*%3d*\/", line(".") - line("'<")): */
     static const struct item data[] = {
         /*  0*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, -1, "12345623456", -1, "", "", -1 }, /* None */
-        /*  1*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, BARCODE_RAW_TEXT, "12345623456", -1, "", "12345623456", -1 },
+        /*  1*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, BARCODE_CONTENT_SEGS, "12345623456", -1, "", "12345623456", -1 },
         /*  2*/ { BARCODE_CODABLOCKF, UNICODE_MODE, 1, -1, -1, "12345623456", -1, "", "", -1 }, /* None (CODE128) */
-        /*  3*/ { BARCODE_CODABLOCKF, UNICODE_MODE, 1, -1, BARCODE_RAW_TEXT, "12345623456", -1, "", "12345623456", -1 },
+        /*  3*/ { BARCODE_CODABLOCKF, UNICODE_MODE, 1, -1, BARCODE_CONTENT_SEGS, "12345623456", -1, "", "12345623456", -1 },
         /*  4*/ { BARCODE_CODABLOCKF, UNICODE_MODE, 1, -1, -1, "12345623456\012é", -1, "", "", -1 }, /* None (CODE128) */
-        /*  5*/ { BARCODE_CODABLOCKF, UNICODE_MODE, 1, -1, BARCODE_RAW_TEXT, "12345623456\012é", -1, "", "12345623456\012\351", -1 },
+        /*  5*/ { BARCODE_CODABLOCKF, UNICODE_MODE, 1, -1, BARCODE_CONTENT_SEGS, "12345623456\012é", -1, "", "12345623456\012é", -1 }, /* Now UTF-8, not converted */
         /*  6*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, -1, "12345623456\012é", -1, "", "", -1 }, /* None */
-        /*  7*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, BARCODE_RAW_TEXT, "12345623456\012é", -1, "", "12345623456\012\351", -1 },
+        /*  7*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, BARCODE_CONTENT_SEGS, "12345623456\012é", -1, "", "12345623456\012é", -1 },
         /*  8*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, -1, "12345623456\000\012é", -1, "", "", -1 }, /* None */
-        /*  9*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, BARCODE_RAW_TEXT, "12345623456\000\012é", 15, "", "12345623456\000\012\351", 14 },
+        /*  9*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, BARCODE_CONTENT_SEGS, "12345623456\000\012é", 15, "", "12345623456\000\012é", 15 },
         /* 10*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, -1, "12345623456\000\012é", 15, "", "", -1 }, /* None */
-        /* 11*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, BARCODE_RAW_TEXT, "12345623456\000\012é", 15, "", "12345623456\000\012é", 15 },
+        /* 11*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, BARCODE_CONTENT_SEGS, "12345623456\000\012é", 15, "", "12345623456\000\012é", 15 },
         /* 12*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, -1, "12345623456\000\012\351", 14, "", "", -1 }, /* None */
-        /* 13*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, BARCODE_RAW_TEXT, "12345623456\000\012\351", 14, "", "12345623456\000\012\351", 14 },
+        /* 13*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, BARCODE_CONTENT_SEGS, "12345623456\000\012\351", 14, "", "12345623456\000\012\351", 14 },
         /* 14*/ { BARCODE_HIBC_BLOCKF, UNICODE_MODE, -1, -1, -1, "H123ABC01234567890", -1, "", "", -1 }, /* None */
-        /* 15*/ { BARCODE_HIBC_BLOCKF, UNICODE_MODE, -1, -1, BARCODE_RAW_TEXT, "H123ABC01234567890", -1, "", "+H123ABC01234567890D", -1 },
+        /* 15*/ { BARCODE_HIBC_BLOCKF, UNICODE_MODE, -1, -1, BARCODE_CONTENT_SEGS, "H123ABC01234567890", -1, "", "+H123ABC01234567890D", -1 },
     };
     const int data_size = ARRAY_SIZE(data);
     int i, length, ret;
     struct zint_symbol *symbol = NULL;
-    int expected_length, expected_raw_length;
+    int expected_length, expected_content_length;
 
     testStartSymbol(p_ctx->func_name, &symbol);
 
@@ -335,8 +335,8 @@ static void test_hrt(const testCtx *const p_ctx) {
                                     data[i].option_1, data[i].option_2, -1 /*option_3*/, data[i].output_options,
                                     data[i].data, data[i].length, debug);
         expected_length = (int) strlen(data[i].expected);
-        expected_raw_length = data[i].expected_raw_length == -1 ? (int) strlen(data[i].expected_raw)
-                                                                : data[i].expected_raw_length;
+        expected_content_length = data[i].expected_content_length == -1 ? (int) strlen(data[i].expected_content)
+                                                                : data[i].expected_content_length;
 
         ret = ZBarcode_Encode(symbol, TCU(data[i].data), length);
         assert_zero(ret, "i:%d ZBarcode_Encode ret %d != 0 %s\n", i, ret, symbol->errtxt);
@@ -345,18 +345,18 @@ static void test_hrt(const testCtx *const p_ctx) {
                     i, symbol->text_length, expected_length);
         assert_zero(memcmp(symbol->text, data[i].expected, expected_length), "i:%d memcmp(%s, %s, %d) != 0\n",
                     i, symbol->text, data[i].expected, expected_length);
-        if (symbol->output_options & BARCODE_RAW_TEXT) {
-            assert_nonnull(symbol->raw_segs, "i:%d raw_segs NULL\n", i);
-            assert_nonnull(symbol->raw_segs[0].source, "i:%d raw_segs[0].source NULL\n", i);
-            assert_equal(symbol->raw_segs[0].length, expected_raw_length,
-                        "i:%d raw_segs[0].length %d != expected_raw_length %d\n",
-                        i, symbol->raw_segs[0].length, expected_raw_length);
-            assert_zero(memcmp(symbol->raw_segs[0].source, data[i].expected_raw, expected_raw_length),
+        if (symbol->output_options & BARCODE_CONTENT_SEGS) {
+            assert_nonnull(symbol->content_segs, "i:%d content_segs NULL\n", i);
+            assert_nonnull(symbol->content_segs[0].source, "i:%d content_segs[0].source NULL\n", i);
+            assert_equal(symbol->content_segs[0].length, expected_content_length,
+                        "i:%d content_segs[0].length %d != expected_content_length %d\n",
+                        i, symbol->content_segs[0].length, expected_content_length);
+            assert_zero(memcmp(symbol->content_segs[0].source, data[i].expected_content, expected_content_length),
                         "i:%d memcmp(%.*s, %.*s, %d) != 0\n",
-                        i, symbol->raw_segs[0].length, symbol->raw_segs[0].source, expected_raw_length,
-                        data[i].expected_raw, expected_raw_length);
+                        i, symbol->content_segs[0].length, symbol->content_segs[0].source, expected_content_length,
+                        data[i].expected_content, expected_content_length);
         } else {
-            assert_null(symbol->raw_segs, "i:%d raw_segs not NULL\n", i);
+            assert_null(symbol->content_segs, "i:%d content_segs not NULL\n", i);
         }
 
         ZBarcode_Delete(symbol);
@@ -420,14 +420,14 @@ static void test_input(const testCtx *const p_ctx) {
         /* 18*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "\037\037\037ß", -1, 0, 2, 101, 1, 1, "67 62 40 5F 5F 5F 63 03 6A 67 64 0B 64 3F 0E 34 1A 6A", "CodeA US (3) / CodeB FNC4 ß fully on next line" },
         /* 19*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "aà", -1, 0, 2, 101, 1, 1, "67 64 40 41 64 40 63 59 6A 67 64 0B 63 64 5D 1E 16 6A", "CodeB a FNC4 à fits 1st line" },
         /* 20*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "\037à", -1, 0, 2, 101, 0, 1, "67 62 40 5F 65 62 40 26 6A 67 64 0B 63 64 1B 1E 01 6A", "CodeA US FNC4 Shift à fits 1st line; BWIPP different encodation (CodeB instead of Shift)" },
-        /* 21*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "\037àa", -1, 0, 2, 101, 0, 1, "67 62 40 5F 64 64 40 2C 6A 67 64 0B 41 63 52 4A 16 6A", "CodeA US LatchB FNC4 à fits 1st line / Code B a; BWIPP diffent encodation (as above)" },
+        /* 21*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "\037àa", -1, 0, 2, 101, 0, 1, "67 62 40 5F 64 64 40 2C 6A 67 64 0B 41 63 52 4A 16 6A", "CodeA US LatchB FNC4 à fits 1st line / Code B a; BWIPP different encodation (as above)" },
         /* 22*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "aaà", -1, 0, 2, 101, 1, 1, "67 64 40 41 41 64 40 16 6A 67 64 0B 63 64 51 5D 1F 6A", "CodeB a a FNC4 à fits 1st line" },
         /* 23*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "\037\037à", -1, 0, 2, 101, 1, 1, "67 62 40 5F 5F 63 64 1D 6A 67 64 0B 64 40 37 1B 55 6A", "CodeA US US / Code B FNC4 à fully on next line" },
         /* 24*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "aaaà", -1, 0, 2, 101, 1, 1, "67 64 40 41 41 41 63 39 6A 67 64 0B 64 40 50 51 13 6A", "CodeB a (3) / Code B FNC4 à fully on next line" },
         /* 25*/ { BARCODE_CODABLOCKF, UNICODE_MODE, -1, -1, "\037\037\037à", -1, 0, 2, 101, 1, 1, "67 62 40 5F 5F 5F 63 03 6A 67 64 0B 64 40 1C 37 0F 6A", "CodeA US (3) / CodeB FNC4 à fully on next line" },
         /* 26*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\037\200", -1, 0, 2, 101, 1, 899, "67 62 40 5F 65 40 63 4E 6A 67 64 0B 63 64 5D 0A 05 6A", "CodeA US FNC4 PAD fits 1st line" },
         /* 27*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\141\200", -1, 0, 2, 101, 0, 899, "67 64 40 41 64 62 40 31 6A 67 64 0B 63 64 49 0A 08 6A", "CodeB a FNC4 Shift PAD fits 1st line; BWIPP different encodation (CodeA instead of Shift)" },
-        /* 28*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\141\200\037", -1, 0, 2, 101, 0, 899, "67 64 40 41 65 65 40 44 6A 67 62 0B 5F 63 10 12 3E 6A", "CodeB a LatchA FNC4 PAD fits 1st line / CodeA US; BWIPP diffent encodation (as above)" },
+        /* 28*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\141\200\037", -1, 0, 2, 101, 0, 899, "67 64 40 41 65 65 40 44 6A 67 62 0B 5F 63 10 12 3E 6A", "CodeB a LatchA FNC4 PAD fits 1st line / CodeA US; BWIPP different encodation (as above)" },
         /* 29*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\037\037\200", -1, 0, 2, 101, 1, 899, "67 62 40 5F 5F 65 40 1D 6A 67 64 0B 63 64 0F 5D 0A 6A", "CodeA US US FNC4 PAD fits 1st line" },
         /* 30*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\141\141\200", -1, 0, 2, 101, 1, 899, "67 64 40 41 41 63 64 1B 6A 67 62 0B 65 40 33 49 21 6A", "CodeB a a / CodeA FNC4 PAD fully on next line" },
         /* 31*/ { BARCODE_CODABLOCKF, DATA_MODE, -1, -1, "\037\037\037\200", -1, 0, 2, 101, 1, 899, "67 62 40 5F 5F 5F 63 03 6A 67 62 0B 65 40 4A 0F 06 6A", "CodeA US (3) / CodeA FNC4 PAD fully on next line" },
