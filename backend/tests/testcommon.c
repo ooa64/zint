@@ -1,6 +1,6 @@
 /*
     libzint - the open source barcode library
-    Copyright (C) 2019-2025 Robin Stuart <rstuart114@gmail.com>
+    Copyright (C) 2019-2026 Robin Stuart <rstuart114@gmail.com>
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -124,12 +124,14 @@ void assert_notequal(int e1, int e2, const char *fmt, ...) {
 #endif
 
 #ifdef _WIN32
-#define utf8_to_wide(u, w) \
+/* Convert UTF-8 to Windows wide chars. Ticket #288, props Marcel */
+/* See "backend/output.c" */
+#define utf8_to_wide(u, w, r) \
     { \
-        int lenW; /* Includes terminating NUL */ \
-        if ((lenW = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, u, -1, NULL, 0)) == 0) return 0; \
+        int lenW; /* Includes NUL terminator */ \
+        if ((lenW = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, u, -1, NULL, 0)) == 0) return r; \
         w = (wchar_t *) z_alloca(sizeof(wchar_t) * lenW); \
-        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, u, -1, w, lenW) == 0) return 0; \
+        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, u, -1, w, lenW) == 0) return r; \
     }
 #endif
 
@@ -567,6 +569,7 @@ const char *testUtilInputModeName(int input_mode) {
         { "HEIGHTPERROW_MODE", HEIGHTPERROW_MODE, 0x0040 },
         { "FAST_MODE", FAST_MODE, 0x0080 },
         { "EXTRA_ESCAPE_MODE", EXTRA_ESCAPE_MODE, 0x0100 },
+        { "GS1SYNTAXENGINE_MODE", GS1SYNTAXENGINE_MODE, 0x0200 },
     };
     const int data_size = ARRAY_SIZE(data);
     int set, i;
@@ -614,7 +617,13 @@ const char *testUtilOption3Name(int symbology, int option_3) {
     const char *name = NULL;
     const unsigned int high_byte = option_3 == -1 ? 0 : (option_3 >> 8) & 0xFF;
 
-    if (symbology == BARCODE_DATAMATRIX || symbology == BARCODE_HIBC_DM) {
+    if (symbology == BARCODE_AZTEC || symbology == BARCODE_HIBC_AZTEC) {
+        if ((option_3 & 0xFF) == ZINT_AZTEC_FULL) {
+            name = "ZINT_AZTEC_FULL";
+        } else {
+            name = (option_3 & 0xFF) ? "-1" : "0";
+        }
+    } else if (symbology == BARCODE_DATAMATRIX || symbology == BARCODE_HIBC_DM) {
         if (option_3 > 0) {
             if ((option_3 & 0x7F) == DM_SQUARE) {
                 if ((option_3 & DM_ISO_144) == DM_ISO_144) {
@@ -1550,7 +1559,7 @@ FILE *testUtilOpen(const char *filename, const char *mode) {
     return fp;
 }
 
-/* Does file exist? */
+/* Does file exist? Returns 1 if does, 0 if doesn't */
 int testUtilExists(const char *filename) {
     FILE *fp = testUtilOpen(filename, "r");
     if (fp == NULL) {
@@ -1564,21 +1573,21 @@ int testUtilExists(const char *filename) {
 int testUtilRemove(const char *filename) {
 #ifdef _WIN32
     wchar_t *filenameW;
-    utf8_to_wide(filename, filenameW);
+    utf8_to_wide(filename, filenameW, -1 /*fail return*/);
     return DeleteFileW(filenameW) == 0; /* Non-zero on success */
 #else
     return remove(filename);
 #endif
 }
 
-/* Does directory exist? (Windows compatibility) */
+/* Does directory exist? (Windows compatibility). Returns 1 if does, 0 if doesn't */
 int testUtilDirExists(const char *dirname) {
 #ifdef _WIN32
     DWORD dwAttrib;
     wchar_t *dirnameW;
-    utf8_to_wide(dirname, dirnameW);
+    utf8_to_wide(dirname, dirnameW, 0 /*fail return*/);
     dwAttrib = GetFileAttributesW(dirnameW);
-    return dwAttrib != (DWORD) -1 && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+    return dwAttrib != (DWORD) -1 && !!(dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
 #else
     return testUtilExists(dirname);
 #endif
@@ -1588,7 +1597,7 @@ int testUtilDirExists(const char *dirname) {
 int testUtilMkDir(const char *dirname) {
 #ifdef _WIN32
     wchar_t *dirnameW;
-    utf8_to_wide(dirname, dirnameW);
+    utf8_to_wide(dirname, dirnameW, -1 /*fail return*/);
     return CreateDirectoryW(dirnameW, NULL) == 0;
 #else
     return mkdir(dirname, S_IRWXU);
@@ -1599,28 +1608,28 @@ int testUtilMkDir(const char *dirname) {
 int testUtilRmDir(const char *dirname) {
 #ifdef _WIN32
     wchar_t *dirnameW;
-    utf8_to_wide(dirname, dirnameW);
+    utf8_to_wide(dirname, dirnameW, -1 /*fail return*/);
     return RemoveDirectoryW(dirnameW) == 0;
 #else
     return rmdir(dirname);
 #endif
 }
 
-/* Rename a file (Windows compatibility) */
+/* Rename a file (Windows compatibility). Returns 0 if successful, non-zero if not */
 int testUtilRename(const char *oldpath, const char *newpath) {
 #ifdef _WIN32
     wchar_t *oldpathW, *newpathW;
     int ret = testUtilRemove(newpath);
     if (ret != 0) return ret;
-    utf8_to_wide(oldpath, oldpathW);
-    utf8_to_wide(newpath, newpathW);
+    utf8_to_wide(oldpath, oldpathW, -1 /*fail return*/);
+    utf8_to_wide(newpath, newpathW, -1 /*fail return*/);
     return _wrename(oldpathW, newpathW);
 #else
     return rename(oldpath, newpath);
 #endif
 }
 
-/* Create read-only file */
+/* Create read-only file. Returns 1 if successful, 0 if not */
 int testUtilCreateROFile(const char *filename) {
 #ifdef _WIN32
     wchar_t *filenameW;
@@ -1633,7 +1642,7 @@ int testUtilCreateROFile(const char *filename) {
         return 0;
     }
 #ifdef _WIN32
-    utf8_to_wide(filename, filenameW);
+    utf8_to_wide(filename, filenameW, 0 /*fail return*/);
     if (SetFileAttributesW(filenameW, GetFileAttributesW(filenameW) | FILE_ATTRIBUTE_READONLY) == 0) {
         return 0;
     }
@@ -1645,11 +1654,11 @@ int testUtilCreateROFile(const char *filename) {
     return 1;
 }
 
-/* Remove read-only file (Windows compatibility) */
+/* Remove read-only file (Windows compatibility). Returns 0 if successful, non-zero if not */
 int testUtilRmROFile(const char *filename) {
 #ifdef _WIN32
     wchar_t *filenameW;
-    utf8_to_wide(filename, filenameW);
+    utf8_to_wide(filename, filenameW, -1 /*fail return*/);
     if (SetFileAttributesW(filenameW, GetFileAttributesW(filenameW) & ~FILE_ATTRIBUTE_READONLY) == 0) {
         return -1;
     }
@@ -2578,7 +2587,7 @@ int testUtilCanBwipp(int index, const struct zint_symbol *symbol, int option_1, 
 
 /* Convert Zint GS1 and add-on format to BWIPP's */
 static char *testUtilBwippCvtGS1Data(char *bwipp_data, const int bwipp_data_size, const int upcean,
-                const int parens_mode, const int parens_esc_mode, int *addon_posn, int *parens_esc) {
+                const int parens_mode, int *addon_posn, int *parens_esc) {
     char *b = bwipp_data, *c;
     char *be = b + bwipp_data_size;
     int pipe = 0;
@@ -2590,7 +2599,7 @@ static char *testUtilBwippCvtGS1Data(char *bwipp_data, const int bwipp_data_size
     *parens_esc = 0;
     for (c = cpy; b < be && *c; b++, c++) {
         if ((!parens_mode && (*c == '(' || *c == ')'))
-                || (parens_esc_mode && *c == '\\' && (c[1] == '(' || c[1] == ')'))) {
+                || (parens_mode && *c == '\\' && (c[1] == '(' || c[1] == ')'))) {
             if (b + 4 >= be) {
                 fprintf(stderr, "testUtilBwippCvtGS1Data: parenthesis bwipp_data buffer full (%d)\n",
                         bwipp_data_size);
@@ -2902,7 +2911,6 @@ int testUtilBwipp(int index, const struct zint_symbol *symbol, int option_1, int
     const int parens_mode = symbol->input_mode & GS1PARENS_MODE;
     const char obracket = parens_mode ? '(' : '[';
     const char cbracket = parens_mode ? ')' : ']';
-    const int parens_esc_mode = parens_mode && (symbol->input_mode & ESCAPE_MODE);
     int addon_posn;
     int parens_esc;
     int eci;
@@ -2950,8 +2958,8 @@ int testUtilBwipp(int index, const struct zint_symbol *symbol, int option_1, int
         strcat(bwipp_data, primary);
         strcat(bwipp_data, "|");
         strcat(bwipp_data, data);
-        if (testUtilBwippCvtGS1Data(bwipp_data, bwipp_data_size, upcean, parens_mode, parens_esc_mode, &addon_posn,
-                                    &parens_esc) == NULL) {
+        if (testUtilBwippCvtGS1Data(bwipp_data, bwipp_data_size, upcean, parens_mode, &addon_posn, &parens_esc)
+                == NULL) {
             return -1;
         }
 
@@ -2996,8 +3004,8 @@ int testUtilBwipp(int index, const struct zint_symbol *symbol, int option_1, int
                                                                 : parens_mode ? "(01)" : "[01]");
             }
             strcat(bwipp_data, data);
-            if (testUtilBwippCvtGS1Data(bwipp_data, bwipp_data_size, upcean, parens_mode, parens_esc_mode,
-                                        &addon_posn, &parens_esc) == NULL) {
+            if (testUtilBwippCvtGS1Data(bwipp_data, bwipp_data_size, upcean, parens_mode, &addon_posn, &parens_esc)
+                    == NULL) {
                 return -1;
             }
 

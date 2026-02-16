@@ -1,7 +1,7 @@
 /* zint_tcl.c TCL binding for zint */
 /*
     zint - the open source tcl binding to the zint barcode library
-    Copyright (C) 2014-2025 Harald Oehlmann <oehhar@users.sourceforge.net>
+    Copyright (C) 2014-2026 Harald Oehlmann <oehhar@users.sourceforge.net>
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -184,6 +184,11 @@
 - strcpy() -> memcpy(); sizeof(primary); tabs -> spaces
 2025-04-16 GL
 - Added: EAN8, EAN_2ADDON, EAN_5ADDON, EAN13, EAN8_CC, EAN13_CC, DMFILMEDGE
+2025-12-17 HaO
+- Added -gs1strict switch, copied from CLI program.
+2026-02-20 GL
+- Added -azfull switch.
+- Fiddled with some help capitalization.
 */
 
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32)
@@ -545,6 +550,7 @@ static const char help_message[] = "zint tcl(stub,obj) dll\n"
     "  Available options:\n"
     "   -barcode choice: symbology, use 'zint symbology' to get a list\n"
     "   -addongap integer: (7..12, default: 9) set add-on gap in multiple of module size (EAN/UPC-CC)\n"
+    "   -azfull bool: force Aztec symbols to be Full (non-Compact) on automatic size selection\n"
     "   -bg color: set background color as 6 or 8 hex rrggbbaa\n"
     /* cli option --binary internally handled */
     "   -bind bool: bars above/below the code, size set by -border\n"
@@ -556,31 +562,36 @@ static const char help_message[] = "zint tcl(stub,obj) dll\n"
     "   -cols integer: Codablock F, DotCode, PDF417: number of columns\n"
     "   -compliantheight bool: warn if height not compliant, and use standard default\n"
     /* cli option --data is standard parameter */
-    "   -dmiso144 bool: Use ISO format for 144x144 Data Matrix symbols\n"
-    "   -dmre bool: Allow Data Matrix Rectangular Extended\n"
+    "   -dmiso144 bool: use ISO format for 144x144 Data Matrix symbols\n"
+    "   -dmre bool: allow Data Matrix Rectangular Extended\n"
     "   -dotsize number: radius ratio of dots from 0.01 to 1.0\n"
     "   -dotty bool: use dots instead of boxes for matrix codes\n"
     /* cli option --dump not supported */
     /* cli option --ecinos not supported */
     "   -eci choice: ECI to use\n"
     /* cli option --embedfont not supported (vector output only) */
-    "   -esc bool: Process escape sequences in input data\n"
-    "   -extraesc bool: Process symbology-specific escape sequences (Code 128 only)\n"
-    "   -fast bool: use fast encodation (Data Matrix)\n"
+    "   -esc bool: process escape sequences in input data\n"
+    "   -extraesc bool: process symbology-specific escape sequences (Code 128 only)\n"
+    "   -fast bool: use fast encodation (Aztec, Data Matrix, MicroPDF417, PDF417, QR, UPNQR)\n"
     "   -fg color: set foreground color as 6 or 8 hex rrggbbaa\n"
     /* replaces cli options --binary and --gs1 */
     "   -format binary|unicode|gs1: input data format. Default:unicode\n"
-    "   -fullmultibyte bool: allow multibyte compaction for xQR, HanXin, Gridmatrix\n"
+    "   -fullmultibyte bool: allow multibyte compaction for xQR, HanXin, GridMatrix\n"
     /* cli option --gs1 replaced by -format */
     "   -gs1nocheck bool: for gs1, do not check validity of data (allows non-standard symbols)\n"
     "   -gs1parens bool: for gs1, AIs enclosed in parentheses instead of square brackets\n"
-    "   -gssep bool: for gs1, use gs as separator instead fnc1 (Datamatrix only)\n"
-    "   -guarddescent double: Height of guard bar descent in modules (EAN/UPC only)\n"
+#ifdef ZINT_HAVE_GS1SE
+    "   -gs1strict bool: use GS1 Syntax Engine to strictly validate GS1 data\n"
+#else
+    "   -gs1strict 0: GS1 syntax engine not compiled in, may not be activated.\n"
+#endif
+    "   -gssep bool: for gs1, use gs as separator instead fnc1 (Data Matrix only)\n"
+    "   -guarddescent double: height of guard bar descent in modules (EAN/UPC only)\n"
     "   -guardwhitespace bool: add quiet zone indicators (EAN/UPC only)\n"
-    "   -height double: Symbol height in modules\n"
+    "   -height double: symbol height in modules\n"
     "   -heightperrow bool: treat height as per-row\n"
     /* cli option --input not supported */
-    "   -init bool: Create reader initialisation symbol (Code 128, Data Matrix)\n"
+    "   -init bool: create reader initialisation symbol (Code 128, Data Matrix)\n"
     "   -mask integer: set masking pattern to use (QR/MicroQR/HanXin/DotCode)\n"
     /* cli option --mirror not supported */
     "   -mode integer: set encoding mode (MaxiCode, Composite)\n"
@@ -590,26 +601,26 @@ static const char help_message[] = "zint tcl(stub,obj) dll\n"
     /* cli option --output not supported */
     "   -primary text: Structured primary data (MaxiCode, Composite)\n"
     "   -quietzones bool: add compliant quiet zones to whitespace\n"
-    "   -reverse bool: Reverse colours (white on black)\n"
-    "   -rotate angle: Image rotation by 0,90 or 270 degrees\n"
+    "   -reverse bool: reverse colours (white on black)\n"
+    "   -rotate angle: image rotation by 0, 90 or 270 degrees\n"
     "   -rows integer: Codablock F, PDF417: number of rows\n"
-    "   -scale double: Scale the image to this factor\n"
-    "   -scalexdimdp {xdim ?resolution?}: Scale with X-dimension mm, resolution dpmm\n"
-    "   -scmvv integer: Prefix SCM with [)>\\R01\\Gvv (vv is integer) (MaxiCode)\n"
+    "   -scale double: scale the image to this factor\n"
+    "   -scalexdimdp {xdim ?resolution?}: scale with X-dimension mm, resolution dpmm\n"
+    "   -scmvv integer: prefix SCM with [)>\\R01\\Gvv (vv is integer) (MaxiCode)\n"
     "   -secure integer: EC Level (Aztec, GridMatrix, HanXin, PDF417, QR, UltraCode)\n"
-    "   -segN {eci data}: Set the ECI & data content for segment N where N is 1 to 9\n"
+    "   -segN {eci data}: set the ECI & data content for segment N where N is 1 to 9\n"
     "   -separator 0..4 (default: 1) : Stacked symbologies: separator width\n"
     /* cli option --small replaced by -smalltext */
     "   -smalltext bool: tiny interpretation line font\n"
     "   -square bool: force Data Matrix symbols to be square\n"
     "   -structapp {index count ?id?}: set Structured Append info\n"
-    "   -textgap double: Gap between barcode and text\n"
+    "   -textgap double: gap between barcode and text\n"
     /* cli option --types not supported */
-    "   -vers integer: Symbology option\n"
+    "   -vers integer: symbology option\n"
     /* cli option --version not supported */
     "   -vwhitesp integer: vertical quiet zone in modules\n"
     "   -whitesp integer: horizontal quiet zone in modules\n"
-    "   -werror bool: Convert all warnings into errors\n"
+    "   -werror bool: convert all warnings into errors\n"
     "   -to {x0 y0 ?width? ?height?}: place to put in photo image\n"
     "\n"
     "zint symbologies: List available symbologies\n"
@@ -895,11 +906,14 @@ static int Encode(Tcl_Interp *interp, int objc,
         /*--------------------------------------------------------------------*/
         /* Option list and indexes */
         static const char *optionList[] = {
-            "-addongap", "-barcode", "-bg", "-bind", "-bindtop", "-bold", "-border", "-box",
+            "-addongap", "-azfull",
+            "-barcode", "-bg", "-bind", "-bindtop", "-bold", "-border", "-box",
             "-cols", "-compliantheight", "-dmiso144", "-dmre", "-dotsize", "-dotty",
             "-eci", "-esc", "-extraesc", "-fast", "-fg", "-format", "-fullmultibyte",
-            "-gs1nocheck", "-gs1parens", "-gssep", "-guarddescent", "-guardwhitespace",
-            "-height", "-heightperrow", "-init", "-mask", "-mode",
+            "-gs1nocheck", "-gs1parens",
+            "-gs1strict",
+            "-gssep", "-guarddescent",
+            "-guardwhitespace", "-height", "-heightperrow", "-init", "-mask", "-mode",
             "-nobackground", "-noquietzones", "-notext", "-primary", "-quietzones",
             "-reverse", "-rotate", "-rows", "-scale", "-scalexdimdp", "-scmvv", "-secure",
             "-seg1", "-seg2", "-seg3", "-seg4", "-seg5", "-seg6", "-seg7", "-seg8", "-seg9",
@@ -907,11 +921,14 @@ static int Encode(Tcl_Interp *interp, int objc,
             "-textgap", "-to", "-vers", "-vwhitesp", "-werror", "-whitesp",
             NULL};
         enum iOption {
-            iAddonGap, iBarcode, iBG, iBind, iBindTop, iBold, iBorder, iBox,
+            iAddonGap, iAzFull,
+            iBarcode, iBG, iBind, iBindTop, iBold, iBorder, iBox,
             iCols, iCompliantHeight, iDMISO144, iDMRE, iDotSize, iDotty,
             iECI, iEsc, iExtraEsc, iFast, iFG, iFormat, iFullMultiByte,
-            iGS1NoCheck, iGS1Parens, iGSSep, iGuardDescent, iGuardWhitespace,
-            iHeight, iHeightPerRow, iInit, iMask, iMode,
+            iGS1NoCheck, iGS1Parens,
+            iGS1Strict,
+            iGSSep, iGuardDescent,
+            iGuardWhitespace, iHeight, iHeightPerRow, iInit, iMask, iMode,
             iNoBackground, iNoQuietZones, iNoText, iPrimary, iQuietZones,
             iReverse, iRotate, iRows, iScale, iScaleXdimDp, iSCMvv, iSecure,
             iSeg1, iSeg2, iSeg3, iSeg4, iSeg5, iSeg6, iSeg7, iSeg8, iSeg9,
@@ -933,6 +950,7 @@ static int Encode(Tcl_Interp *interp, int objc,
         /*--------------------------------------------------------------------*/
         /* >> Decode object */
         switch (optionIndex) {
+        case iAzFull:
         case iBind:
         case iBindTop:
         case iBold:
@@ -946,6 +964,7 @@ static int Encode(Tcl_Interp *interp, int objc,
         case iFast:
         case iGS1NoCheck:
         case iGS1Parens:
+        case iGS1Strict:
         case iGSSep:
         case iGuardWhitespace:
         case iHeightPerRow:
@@ -1066,6 +1085,10 @@ static int Encode(Tcl_Interp *interp, int objc,
                 addon_gap = intValue;
             }
             break;
+        case iAzFull:
+            if (intValue)
+                my_symbol->option_3 = ZINT_AZTEC_FULL | (my_symbol->option_3 & ~0xFF);
+            break;
         case iBind:
             if (intValue) {
                 my_symbol->output_options |= BARCODE_BIND;
@@ -1141,6 +1164,7 @@ static int Encode(Tcl_Interp *interp, int objc,
         case iGS1NoCheck:
             if (intValue) {
                 my_symbol->input_mode |= GS1NOCHECK_MODE;
+                my_symbol->input_mode = (my_symbol->input_mode & ~0x07) | GS1_MODE; /* Now sets GS1_MODE also */
             } else {
                 my_symbol->input_mode &= ~GS1NOCHECK_MODE;
             }
@@ -1148,8 +1172,23 @@ static int Encode(Tcl_Interp *interp, int objc,
         case iGS1Parens:
             if (intValue) {
                 my_symbol->input_mode |= GS1PARENS_MODE;
+                my_symbol->input_mode = (my_symbol->input_mode & ~0x07) | GS1_MODE; /* Now sets GS1_MODE also */
             } else {
                 my_symbol->input_mode &= ~GS1PARENS_MODE;
+            }
+            break;
+        case iGS1Strict:
+            if (intValue) {
+#ifdef ZINT_HAVE_GS1SE
+                my_symbol->input_mode |= GS1SYNTAXENGINE_MODE;
+                my_symbol->input_mode = (my_symbol->input_mode & ~0x07) | GS1_MODE; /* Now sets GS1_MODE also */
+#else
+                Tcl_SetObjResult(interp,
+                    Tcl_NewStringObj("GS1 syntax engine not compiled in", -1));
+                fError = 1;
+#endif
+            } else {
+                my_symbol->input_mode &= ~GS1SYNTAXENGINE_MODE;
             }
             break;
         case iGSSep:

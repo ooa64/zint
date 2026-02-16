@@ -1,5 +1,5 @@
 # Copyright (C) 2008 by BogDan Vatra < bogdan@licentia.eu >
-# Copyright (C) 2009-2025 Robin Stuart <rstuart114@gmail.com>
+# Copyright (C) 2009-2026 Robin Stuart <rstuart114@gmail.com>
 # vim: set ts=4 sw=4 et :
 
 cmake_minimum_required(VERSION 3.10)
@@ -8,7 +8,7 @@ project(zint-package)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(ZINT_VERSION_MAJOR 2)
-set(ZINT_VERSION_MINOR 15)
+set(ZINT_VERSION_MINOR 16)
 set(ZINT_VERSION_RELEASE 0)
 set(ZINT_VERSION_BUILD 9) # Set to 0 before release, set to 9 after release
 set(ZINT_VERSION "${ZINT_VERSION_MAJOR}.${ZINT_VERSION_MINOR}.${ZINT_VERSION_RELEASE}.${ZINT_VERSION_BUILD}")
@@ -147,6 +147,9 @@ if(NOT HAVE_GETOPT_LONG_ONLY)
     add_subdirectory(getopt)
 endif()
 
+# For setting rpath in frontend and frontend_qt
+set_property(GLOBAL PROPERTY ZINT_LIBDIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
 add_subdirectory(backend)
 if(ZINT_FRONTEND)
     add_subdirectory(frontend)
@@ -154,7 +157,7 @@ endif()
 
 if(NOT ZINT_USE_QT)
     message(STATUS "Qt support was disabled for this build")
-elseif(ZINT_QT6 OR ($ENV{CMAKE_PREFIX_PATH} MATCHES "6[.][0-9][.][0-9]"))
+elseif(ZINT_QT6)
     set(USE_QT6 TRUE)
     message(STATUS "Using Qt6")
     cmake_policy(SET CMP0012 NEW) # Recognize constants in if()
